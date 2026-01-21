@@ -1,0 +1,42 @@
+{
+  "name": "coarse-3regions-imbalanced",
+
+  "locationTree": {
+  "id": "root",
+  "name": "root",
+  "children": [
+    { "id": 0, "name": "Region0", "children": [] },
+    { "id": 1, "name": "Region1", "children": [] },
+    { "id": 2, "name": "Region2", "children": [] }
+  ]
+},
+
+  "characters": [
+    { "name": "A", "id": 0 },
+    { "name": "B", "id": 1 },
+    { "name": "C", "id": 2 },
+    { "name": "D", "id": 3 },
+    { "name": "E", "id": 4 },
+    { "name": "F", "id": 5 },
+    { "name": "G", "id": 6 },
+    { "name": "H", "id": 7 }
+  ],
+  "locations": [
+    { "name": "Region0", "id": 0 },
+    { "name": "Region1", "id": 1 },
+    { "name": "Region2", "id": 2 }
+  ],
+  "sessions": [
+    { "start": 0,  "end": 8,  "members": [0,1,2,3], "location": 0 },
+    { "start": 0,  "end": 8,  "members": [4,5],     "location": 1 },
+    { "start": 0,  "end": 8,  "members": [6,7],     "location": 2 },
+
+    { "start": 8,  "end": 16, "members": [0,1],         "location": 0 },
+    { "start": 8,  "end": 16, "members": [2,3,4,5],     "location": 1 },
+    { "start": 8,  "end": 16, "members": [6,7],         "location": 2 },
+
+    { "start": 16, "end": 24, "members": [0,1,5],       "location": 0 },
+    { "start": 16, "end": 24, "members": [2,3],         "location": 1 },
+    { "start": 16, "end": 24, "members": [4,6,7],       "location": 2 }
+  ]
+}

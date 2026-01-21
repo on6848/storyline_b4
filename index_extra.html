@@ -3,7 +3,7 @@
 
 <head lang="en">
   <meta charset="UTF-8">
-  <title>StoryFlow: Tracking the Evolution of Stories</title>
+  <title>StoryFlow: Extra Datasets</title>
   <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
   <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
 
@@ -116,8 +116,8 @@
       <tr>
         <td>
           <select name="dataset" id="dataset">
-            <option value="dataset/municipality_sessions.json">市区町村セッション</option>
-            <option value="dataset/prefecture_sessions.json">都道府県セッション</option>
+            <option value="dataset/municipality_sessions_cross2x.json">市区町村セッション（交差多め）</option>
+            <option value="dataset/prefecture_sessions_cross2x.json">都道府県セッション（交差多め）</option>
           </select>
         </td>
         <td>
@@ -153,9 +153,6 @@
         </td>
         <td style="padding-left:12px; font-size:12px; color:#444;">
           Shift+クリックで直線化を切替
-        </td>
-        <td style="padding-left:12px; font-size:12px;">
-          <a href="index_extra.html">交差多めの別ページ</a>
         </td>
       </tr>
     </table>
@@ -421,7 +418,7 @@
     function renderTradeoffChart() {
       var datasets = getDatasetListFromSelect();
       var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-      var results = new Array(datasets.length);
+      var results = [];
       var remaining = datasets.length;
 
       if (remaining === 0) {
@@ -455,8 +452,7 @@
               series.push({
                 w: w,
                 crossingsAvg: metrics.crossingsAvg,
-                kendallAvg: metrics.kendallAvg,
-                data: annotated
+                kendallAvg: metrics.kendallAvg
               });
             }
           });
@@ -473,38 +469,7 @@
       svg.html("");
 
       var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
-      if (valid.length < 2) return;
-
-      var paired = [];
-      var len = Math.min(valid[0].series.length, valid[1].series.length);
-      for (var i = 0; i < len; i++) {
-        var a = valid[0].series[i];
-        var b = valid[1].series[i];
-        if (a.w !== b.w) continue;
-
-        var start = Math.max(a.data.d3.timeStart, b.data.d3.timeStart);
-        var end = Math.min(a.data.d3.timeEnd, b.data.d3.timeEnd);
-
-        var sum = 0;
-        var count = 0;
-        for (var t = start; t < end; t++) {
-          var ia = t - a.data.d3.timeStart;
-          var ib = t - b.data.d3.timeStart;
-          var ma = a.data.d3.time[ia];
-          var mb = b.data.d3.time[ib];
-          if (!ma || !mb || !ma.sortedCharacters || !mb.sortedCharacters) continue;
-          var kd = kendallDistance(ma.sortedCharacters, mb.sortedCharacters);
-          if (kd.totalPairs === 0) continue;
-          sum += kd.normalized;
-          count++;
-        }
-
-        var kAvg = count ? (sum / count) : 0;
-        var cAvg = (a.crossingsAvg + b.crossingsAvg) / 2;
-        paired.push({ w: a.w, crossingsAvg: cAvg, kendallAvg: kAvg });
-      }
-
-      if (paired.length === 0) return;
+      if (valid.length === 0) return;
 
       var width = 900;
       var height = 260;
@@ -514,7 +479,9 @@
 
       svg.attr("width", width).attr("height", height);
 
-      var maxCross = d3.max(paired, function (d) { return d.crossingsAvg; }) || 1;
+      var maxCross = d3.max(valid, function (d) {
+        return d3.max(d.series, function (s) { return s.crossingsAvg; });
+      }) || 1;
 
       var x = d3.scale.linear().domain([0, 1]).range([0, innerW]);
       var yCross = d3.scale.linear().domain([0, maxCross]).range([innerH, 0]);
@@ -549,40 +516,48 @@
         .x(function (d) { return x(d.w); })
         .y(function (d) { return yKen(d.kendallAvg); });
 
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#333")
-        .attr("d", lineCross);
+      var color = d3.scale.category10();
+      valid.forEach(function (d, i) {
+        var c = color(i);
+        g.append("path")
+          .datum(d.series)
+          .attr("class", "tradeoffLine")
+          .attr("stroke", c)
+          .attr("d", lineCross);
 
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-dasharray", "5,3")
-        .attr("d", lineKen);
+        g.append("path")
+          .datum(d.series)
+          .attr("class", "tradeoffLine")
+          .attr("stroke", c)
+          .attr("stroke-dasharray", "5,3")
+          .attr("d", lineKen);
+      });
 
       var legend = g.append("g").attr("transform", "translate(0,-4)");
-      legend.append("line")
-        .attr("x1", 0).attr("x2", 16)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#333")
-        .attr("stroke-width", 2);
-      legend.append("text")
-        .attr("x", 20).attr("y", 3)
-        .style("font-size", "10px")
-        .text("crossings (avg of 2 datasets)");
+      valid.forEach(function (d, i) {
+        var c = color(i);
+        var y0 = i * 14;
+        legend.append("line")
+          .attr("x1", 0).attr("x2", 16)
+          .attr("y1", y0).attr("y2", y0)
+          .attr("stroke", c)
+          .attr("stroke-width", 2);
+        legend.append("text")
+          .attr("x", 20).attr("y", y0 + 3)
+          .style("font-size", "10px")
+          .text(d.name + " (crossings)");
 
-      legend.append("line")
-        .attr("x1", 180).attr("x2", 196)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-width", 2)
-        .attr("stroke-dasharray", "5,3");
-      legend.append("text")
-        .attr("x", 200).attr("y", 3)
-        .style("font-size", "10px")
-        .text("kendall (between 2 datasets)");
+        legend.append("line")
+          .attr("x1", 150).attr("x2", 166)
+          .attr("y1", y0).attr("y2", y0)
+          .attr("stroke", c)
+          .attr("stroke-width", 2)
+          .attr("stroke-dasharray", "5,3");
+        legend.append("text")
+          .attr("x", 170).attr("y", y0 + 3)
+          .style("font-size", "10px")
+          .text(d.name + " (kendall)");
+      });
     }
 
     function renderAllFromResults(results) {

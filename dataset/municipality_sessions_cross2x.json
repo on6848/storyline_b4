@@ -1,0 +1,61 @@
+{
+  "characters": [
+    { "id": 0, "name": "A" },
+    { "id": 1, "name": "B" },
+    { "id": 2, "name": "C" },
+    { "id": 3, "name": "D" },
+    { "id": 4, "name": "E" },
+    { "id": 5, "name": "F" },
+    { "id": 6, "name": "G" },
+    { "id": 7, "name": "H" },
+    { "id": 8, "name": "I" },
+    { "id": 9, "name": "J" }
+  ],
+  "locations": [
+    { "id": 0, "name": "Alpha City" },
+    { "id": 1, "name": "Beta City" },
+    { "id": 2, "name": "Gamma City" },
+    { "id": 3, "name": "Delta City" },
+    { "id": 4, "name": "Epsilon City" }
+  ],
+  "sessions": [
+    { "id": 0, "location": 0, "members": [0, 1], "start": 0, "end": 2 },
+    { "id": 1, "location": 1, "members": [2, 3], "start": 0, "end": 2 },
+    { "id": 2, "location": 2, "members": [4, 5], "start": 0, "end": 2 },
+    { "id": 3, "location": 3, "members": [6, 7], "start": 0, "end": 2 },
+    { "id": 4, "location": 4, "members": [8, 9], "start": 0, "end": 2 },
+
+    { "id": 5, "location": 1, "members": [0, 4], "start": 2, "end": 4 },
+    { "id": 6, "location": 2, "members": [1, 6], "start": 2, "end": 4 },
+    { "id": 7, "location": 3, "members": [2, 7], "start": 2, "end": 4 },
+    { "id": 8, "location": 4, "members": [3, 8], "start": 2, "end": 4 },
+    { "id": 9, "location": 0, "members": [5, 9], "start": 2, "end": 4 },
+
+    { "id": 10, "location": 2, "members": [0, 7], "start": 4, "end": 6 },
+    { "id": 11, "location": 3, "members": [1, 8], "start": 4, "end": 6 },
+    { "id": 12, "location": 4, "members": [2, 9], "start": 4, "end": 6 },
+    { "id": 13, "location": 0, "members": [3, 6], "start": 4, "end": 6 },
+    { "id": 14, "location": 1, "members": [4, 5], "start": 4, "end": 6 }
+  ],
+  "locationTree": {
+    "id": "root",
+    "name": "Root",
+    "children": [
+      {
+        "name": "Prefecture X",
+        "children": [
+          { "id": 0, "name": "Alpha City", "children": [] },
+          { "id": 1, "name": "Beta City", "children": [] },
+          { "id": 2, "name": "Gamma City", "children": [] }
+        ]
+      },
+      {
+        "name": "Prefecture Y",
+        "children": [
+          { "id": 3, "name": "Delta City", "children": [] },
+          { "id": 4, "name": "Epsilon City", "children": [] }
+        ]
+      }
+    ]
+  }
+}
