@@ -72,48 +72,8 @@
       stroke: #eee;
     }
 
-    #comparisons table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
 
-    #comparisons th,
-    #comparisons td {
-      border: 1px solid #ddd;
-      padding: 4px 6px;
-      text-align: left;
-    }
 
-    #comparisons th {
-      background: #f2f2f2;
-    }
-
-    #tradeoffChart {
-      display: block;
-      width: 100%;
-      height: 260px;
-      background: #fff;
-      border: 1px solid #eee;
-      border-radius: 6px;
-    }
-
-    .tradeoffLine {
-      fill: none;
-      stroke-width: 2;
-    }
-
-    .tradeoffAxis path,
-    .tradeoffAxis line {
-      fill: none;
-      stroke: #999;
-      shape-rendering: crispEdges;
-    }
-
-    .tradeoffAxis text {
-      font-size: 10px;
-      fill: #666;
-    }
   </style>
 </head>
 
@@ -142,55 +102,14 @@
         <td style="padding-left:10px;">
           <button id="redrawAll">Redraw All</button>
         </td>
-        <td style="padding-left:10px;">
-          <button id="plotTradeoff">Plot Tradeoff</button>
-        </td>
-        <td style="padding-left:10px;">
-          <button id="animateWeight">Animate 0→1</button>
-        </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
             <input type="checkbox" id="bundleToggle" />
             LOD バンドリング
           </label>
         </td>
-        <td style="padding-left:12px; font-size:12px;">
-          <label>
-            配置一貫性重み
-            <input type="range" id="consistencyWeight" min="0" max="1" step="0.05" value="0" />
-            <span id="consistencyWeightVal">0.00</span>
-          </label>
-        </td>
-        <td style="padding-left:12px; font-size:12px;">
-          <a href="index_extra.html">交差多めの別ページ</a>
-        </td>
       </tr>
     </table>
-    <div style="font-size:12px;color:#666;margin-top:6px;">
-      上から全データセットを縦に積んで表示します（比較用）。切替はしません。
-    </div>
-  </div>
-
-  <div id="comparisons" class="panel">
-    <h3>スケール間比較</h3>
-    <div class="meta">同時刻における順位差（Kendall距離）の平均を表示します。</div>
-    <table id="comparisonTable">
-      <thead>
-        <tr>
-          <th>比較ペア</th>
-          <th>配置変化率(Kendall平均)</th>
-          <th>交差数合計(2レイアウト)</th>
-          <th>重なりフレーム数</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="tradeoff" class="panel">
-    <h3>トレードオフ（配置一貫性重み vs 指標）</h3>
-    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
-    <svg id="tradeoffChart"></svg>
   </div>
 
   <div id="canvases"></div>
@@ -245,8 +164,6 @@
         epsOrder: 1e-3,      // 5.4 (5a) orderの厳密性
 
         lambdaWhite: 0.05,   // 目的関数：whitespace項の重み
-        consistencyWeight: 0.0,   // 0..1: crossing優先 ↔ 配置一貫性優先
-
         // ADMM solver settings
         rho: 2.0,
         sigma: 1e-6,         // (Q + rho A^T A + sigma I) を正則化
@@ -262,18 +179,12 @@
       }
     };
 
-    var weightAnimation = {
-      timer: null,
-      timeout: null,
-      values: null,
-      index: 0,
-      delayMs: 10000
-    };
-
     $(document).ready(function () {
       $("#dataset").selectmenu({
         width: 230,
-        select: function () { }
+        select: function () {
+          renderAllDatasets();
+        }
       });
 
       $("#interpolation").selectmenu({
@@ -294,81 +205,12 @@
         renderAllDatasets();
       });
 
-      $("#plotTradeoff").button().on("click", function () {
-        renderTradeoffChart();
-      });
-
-      $("#animateWeight").button().on("click", function () {
-        if (weightAnimation.timer) {
-          stopWeightAnimation();
-        } else {
-          startWeightAnimation();
-        }
-      });
-
-      $("#consistencyWeight").on("input change", function () {
-        var v = parseFloat($(this).val());
-        if (!isFinite(v)) return;
-        stopWeightAnimation();
-        setConsistencyWeight(v);
-      });
-
-      $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
-
       if (options.algorithm.useOSQP) {
         ensureOSQPReady(renderAllDatasets);
       } else {
         renderAllDatasets();
       }
     });
-
-    function setConsistencyWeight(value) {
-      var v = Math.max(0, Math.min(1, value));
-      options.algorithm.consistencyWeight = v;
-      $("#consistencyWeight").val(v);
-      $("#consistencyWeightVal").text(v.toFixed(2));
-      renderAllDatasets();
-    }
-
-    function buildWeightSteps() {
-      var steps = [];
-      for (var w = 0; w <= 1.0001; w += 0.1) {
-        steps.push(parseFloat(w.toFixed(2)));
-      }
-      return steps;
-    }
-
-    function startWeightAnimation() {
-      weightAnimation.values = buildWeightSteps();
-      weightAnimation.index = 0;
-      setConsistencyWeight(weightAnimation.values[0]);
-      $("#animateWeight").text("Stop Animation");
-      if (weightAnimation.timer) clearInterval(weightAnimation.timer);
-      if (weightAnimation.timeout) clearTimeout(weightAnimation.timeout);
-      weightAnimation.timeout = setTimeout(function () {
-        weightAnimation.timer = setInterval(function () {
-          var next = weightAnimation.index + 1;
-          if (next >= weightAnimation.values.length) {
-            stopWeightAnimation();
-            return;
-          }
-          weightAnimation.index = next;
-          setConsistencyWeight(weightAnimation.values[weightAnimation.index]);
-        }, 900);
-      }, weightAnimation.delayMs);
-    }
-
-    function stopWeightAnimation() {
-      if (weightAnimation.timeout) {
-        clearTimeout(weightAnimation.timeout);
-        weightAnimation.timeout = null;
-      }
-      if (weightAnimation.timer) {
-        clearInterval(weightAnimation.timer);
-        weightAnimation.timer = null;
-        $("#animateWeight").text("Animate 0→1");
-      }
-    }
 
     function ensureOSQPReady(cb) {
       if (osqpModule) {
@@ -401,313 +243,8 @@
       return list;
     }
 
-    function kendallDistance(orderA, orderB) {
-      var rankA = {};
-      var rankB = {};
-      for (var i = 0; i < orderA.length; i++) rankA[orderA[i]] = i;
-      for (var j = 0; j < orderB.length; j++) rankB[orderB[j]] = j;
-
-      var common = [];
-      for (var k = 0; k < orderA.length; k++) {
-        var id = orderA[k];
-        if (rankB[id] !== undefined) common.push(id);
-      }
-
-      var n = common.length;
-      if (n < 2) return { discordant: 0, totalPairs: 0, normalized: 0, n: n };
-
-      var discordant = 0;
-      for (var i2 = 0; i2 < n - 1; i2++) {
-        var ai = common[i2];
-        for (var j2 = i2 + 1; j2 < n; j2++) {
-          var aj = common[j2];
-          var signA = rankA[ai] - rankA[aj];
-          var signB = rankB[ai] - rankB[aj];
-          if ((signA > 0 && signB < 0) || (signA < 0 && signB > 0)) discordant++;
-        }
-      }
-
-      var totalPairs = n * (n - 1) / 2;
-      var normalized = totalPairs ? (discordant / totalPairs) : 0;
-      return { discordant: discordant, totalPairs: totalPairs, normalized: normalized, n: n };
-    }
-
-    function computeCrossScaleComparisons(list) {
-      var rows = [];
-      for (var i = 0; i < list.length; i++) {
-        for (var j = i + 1; j < list.length; j++) {
-          var a = list[i];
-          var b = list[j];
-          var aData = a.data;
-          var bData = b.data;
-
-          var cA = (aData && aData.d3 && aData.d3.metrics && typeof aData.d3.metrics.crossingsTotal === "number")
-            ? aData.d3.metrics.crossingsTotal : null;
-          var cB = (bData && bData.d3 && bData.d3.metrics && typeof bData.d3.metrics.crossingsTotal === "number")
-            ? bData.d3.metrics.crossingsTotal : null;
-          var crossingsTotal = (cA !== null && cB !== null) ? (cA + cB) : null;
-
-          var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
-          var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
-
-          var sum = 0;
-          var count = 0;
-          for (var t = start; t < end; t++) {
-            var idxA = t - aData.d3.timeStart;
-            var idxB = t - bData.d3.timeStart;
-            var momentA = aData.d3.time[idxA];
-            var momentB = bData.d3.time[idxB];
-            if (!momentA || !momentB) continue;
-            if (!momentA.sortedCharacters || !momentB.sortedCharacters) continue;
-
-            var kd = kendallDistance(momentA.sortedCharacters, momentB.sortedCharacters);
-            if (kd.totalPairs === 0) continue;
-            sum += kd.normalized;
-            count++;
-          }
-
-          rows.push({
-            aName: a.name,
-            bName: b.name,
-            kendallAvg: count ? (sum / count) : null,
-            crossingsTotal: crossingsTotal,
-            overlap: count
-          });
-        }
-      }
-      return rows;
-    }
-
-    function renderComparisonTable(rows) {
-      var table = d3.select("#comparisonTable");
-      var body = table.select("tbody");
-
-      var sel = body.selectAll("tr").data(rows);
-      sel.enter().append("tr");
-      sel.html(function (d) {
-        var kText = (d.kendallAvg === null) ? "-" : d.kendallAvg.toFixed(3);
-        var cText = (d.crossingsTotal === null || d.crossingsTotal === undefined) ? "-" : d.crossingsTotal;
-        return "<td>" + d.aName + " × " + d.bName + "</td>" +
-          "<td>" + kText + "</td>" +
-          "<td>" + cText + "</td>" +
-          "<td>" + d.overlap + "</td>";
-      });
-      sel.exit().remove();
-
-      d3.select("#comparisons").style("display", rows.length ? "block" : "none");
-    }
-
-    function renderTradeoffChart() {
-      var datasets = getDatasetListFromSelect();
-      var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-      if (datasets.length < 2) {
-        d3.select("#tradeoffChart").html("");
-        return;
-      }
-
-      function loadDataset(dsInfo, cb) {
-        d3.json(dsInfo.path, function (error, json) {
-          if (error) {
-            console.error(error);
-            cb(error);
-            return;
-          }
-          cb(null, json);
-        });
-      }
-
-      function buildSeries(json, baseOrderOverride) {
-        var series = [];
-        weights.forEach(function (w) {
-          var local = jQuery.extend(true, {}, json);
-          var localOptions = jQuery.extend(true, {}, options);
-          localOptions.characters.toKeep = null;
-          localOptions.algorithm.consistencyWeight = w;
-          localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
-
-          if (localOptions.bundle && localOptions.bundle.enabled) {
-            localOptions.algorithm.din = 0;
-          }
-
-          var annotated = annotateDataset(local, localOptions);
-          var metrics = annotated && annotated.d3 ? annotated.d3.metrics : null;
-          if (metrics) {
-            series.push({
-              w: w,
-              crossingsAvg: metrics.crossingsAvg,
-              kendallAvg: metrics.kendallAvg,
-              data: annotated
-            });
-          }
-        });
-        return series;
-      }
-
-      loadDataset(datasets[0], function (errA, jsonA) {
-        if (errA) {
-          drawTradeoffChart([]);
-          return;
-        }
-        loadDataset(datasets[1], function (errB, jsonB) {
-          if (errB) {
-            drawTradeoffChart([]);
-            return;
-          }
-
-          // Build base order from dataset 1 (w=0) and reuse for both datasets.
-          var seedSeries = buildSeries(jsonA, null);
-          var baseOrders = [];
-          if (seedSeries.length > 0 && seedSeries[0].data && seedSeries[0].data.d3) {
-            baseOrders = seedSeries[0].data.d3.time.map(function (m) {
-              return (m.d3 && m.d3.baseOrder) ? m.d3.baseOrder.slice() : null;
-            });
-          }
-
-          var seriesA = buildSeries(jsonA, baseOrders);
-          var seriesB = buildSeries(jsonB, baseOrders);
-
-          var results = [
-            { name: datasets[0].name, series: seriesA },
-            { name: datasets[1].name, series: seriesB }
-          ];
-          drawTradeoffChart(results);
-        });
-      });
-    }
-
-    function drawTradeoffChart(results) {
-      var svg = d3.select("#tradeoffChart");
-      svg.html("");
-
-      var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
-      if (valid.length < 2) return;
-
-      var paired = [];
-      var len = Math.min(valid[0].series.length, valid[1].series.length);
-      for (var i = 0; i < len; i++) {
-        var a = valid[0].series[i];
-        var b = valid[1].series[i];
-        if (a.w !== b.w) continue;
-
-        var start = Math.max(a.data.d3.timeStart, b.data.d3.timeStart);
-        var end = Math.min(a.data.d3.timeEnd, b.data.d3.timeEnd);
-
-        var sum = 0;
-        var count = 0;
-        for (var t = start; t < end; t++) {
-          var ia = t - a.data.d3.timeStart;
-          var ib = t - b.data.d3.timeStart;
-          var ma = a.data.d3.time[ia];
-          var mb = b.data.d3.time[ib];
-          if (!ma || !mb || !ma.sortedCharacters || !mb.sortedCharacters) continue;
-          var kd = kendallDistance(ma.sortedCharacters, mb.sortedCharacters);
-          if (kd.totalPairs === 0) continue;
-          sum += kd.normalized;
-          count++;
-        }
-
-        var kAvg = count ? (sum / count) : 0;
-        var cTotal = (a.data.d3 && a.data.d3.metrics ? a.data.d3.metrics.crossingsTotal : 0) +
-          (b.data.d3 && b.data.d3.metrics ? b.data.d3.metrics.crossingsTotal : 0);
-        paired.push({ w: a.w, crossingsTotal: cTotal, kendallAvg: kAvg });
-      }
-
-      if (paired.length === 0) return;
-
-      var width = 900;
-      var height = 260;
-      var margin = { left: 50, right: 50, top: 16, bottom: 30 };
-      var innerW = width - margin.left - margin.right;
-      var innerH = height - margin.top - margin.bottom;
-
-      svg.attr("width", width).attr("height", height);
-
-      var maxCross = d3.max(paired, function (d) { return d.crossingsTotal; }) || 1;
-      paired.forEach(function (d) {
-        d.crossingsNorm = maxCross ? (d.crossingsTotal / maxCross) : 0;
-      });
-
-      var x = d3.scale.linear().domain([0, 1]).range([0, innerW]);
-      var yKen = d3.scale.linear().domain([0, 1]).range([innerH, 0]);
-      var yCross = yKen;
-
-      var g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-      var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(5);
-      var yLeft = d3.svg.axis().scale(yCross).orient("left").ticks(4);
-      var yRight = d3.svg.axis().scale(yKen).orient("right").ticks(4);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .attr("transform", "translate(0," + innerH + ")")
-        .call(xAxis);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .call(yLeft);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .attr("transform", "translate(" + innerW + ",0)")
-        .call(yRight);
-
-      var lineCross = d3.svg.line()
-        .x(function (d) { return x(d.w); })
-        .y(function (d) { return yCross(d.crossingsNorm); });
-
-      var lineKen = d3.svg.line()
-        .x(function (d) { return x(d.w); })
-        .y(function (d) { return yKen(d.kendallAvg); });
-
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#333")
-        .attr("d", lineCross);
-
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-dasharray", "5,3")
-        .attr("d", lineKen);
-
-      var legend = g.append("g").attr("transform", "translate(0,-4)");
-      legend.append("line")
-        .attr("x1", 0).attr("x2", 16)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#333")
-        .attr("stroke-width", 2);
-      legend.append("text")
-        .attr("x", 20).attr("y", 3)
-        .style("font-size", "10px")
-        .text("crossings (normalized)");
-
-      legend.append("line")
-        .attr("x1", 180).attr("x2", 196)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-width", 2)
-        .attr("stroke-dasharray", "5,3");
-      legend.append("text")
-        .attr("x", 200).attr("y", 3)
-        .style("font-size", "10px")
-        .text("kendall (between 2 datasets)");
-    }
 
     function renderAllFromResults(results) {
-      var comparisonItems = [];
-      for (var i = 0; i < results.length; i++) {
-        var res = results[i];
-        if (res && !res.error && res.data) {
-          comparisonItems.push({ name: res.info.name, data: res.data });
-        }
-      }
-
-      var compRows = computeCrossScaleComparisons(comparisonItems);
-      renderComparisonTable(compRows);
-
       d3.select("#canvases").html("");
       results.forEach(function (res, idx) {
         var panel = d3.select("#canvases")
@@ -733,12 +270,10 @@
 
         var metrics = res.data && res.data.d3 ? res.data.d3.metrics : null;
         var metaText = "path: " + res.info.path +
-          " / interpolation: " + options.characters.interpolation +
-          " / consistency: " + options.algorithm.consistencyWeight.toFixed(2);
+          " / interpolation: " + options.characters.interpolation;
         if (metrics) {
           metaText += " / crossings: " + metrics.crossingsTotal +
-            " (avg " + metrics.crossingsAvg.toFixed(2) + ")" +
-            " / kendall(avg): " + metrics.kendallAvg.toFixed(3);
+            " (avg " + metrics.crossingsAvg.toFixed(2) + ")";
         }
         meta.text(metaText);
         drawStoryFlow(res.data, res.options, svg, "p" + idx + "-");
@@ -756,7 +291,6 @@
       var remaining = datasets.length;
 
       if (remaining === 0) {
-        renderComparisonTable([]);
         d3.select("#canvases").html("");
         return;
       }
@@ -1593,34 +1127,17 @@
         return rank;
       }
 
-      function buildBaseRank(baseOrder) {
-        var rank = {};
-        if (!baseOrder) return rank;
-        for (var i = 0; i < baseOrder.length; ++i) {
-          rank[baseOrder[i]] = i + 1;
-        }
-        return rank;
-      }
-
       // node.weight を bottom-up で計算
       // entity: ref rank (無ければ大きい値)
       // session: children平均
       // location/root: children平均（※location自体は固定順なので、重みは主に親側集約用）
-      function computeWeightsBottomUp(node, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options) {
+      function computeWeightsBottomUp(node, refRank, fallbackWeight, prevWeightByChar, options) {
         if (!node) return fallbackWeight;
-
-        function blendRank(refVal, baseVal) {
-          if (refVal === undefined && baseVal === undefined) return fallbackWeight;
-          if (refVal === undefined) return baseVal;
-          if (baseVal === undefined) return refVal;
-          var w = (typeof consistencyWeight === "number") ? consistencyWeight : 0.0;
-          return (1.0 - w) * refVal + w * baseVal;
-        }
 
         if (node.type === "entity") {
           // 参照にあればそれを使う
-          if (refRank[node.id] !== undefined || baseRank[node.id] !== undefined) {
-            node.weight = blendRank(refRank[node.id], baseRank[node.id]);
+          if (refRank[node.id] !== undefined) {
+            node.weight = refRank[node.id];
             return node.weight;
           }
 
@@ -1650,7 +1167,7 @@
         var sum = 0;
         var cnt = 0;
         for (var i = 0; i < children.length; ++i) {
-          sum += computeWeightsBottomUp(children[i], refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
+          sum += computeWeightsBottomUp(children[i], refRank, fallbackWeight, prevWeightByChar, options);
           cnt++;
         }
 
@@ -1886,15 +1403,11 @@
         // 参照順位
         var refRank = buildRefRank(referenceSortedCharacters);
         var fallbackWeight = referenceSortedCharacters.length + 9999;
-        var baseRank = buildBaseRank(moment.d3 ? moment.d3.baseOrder : null);
-        var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
-          ? options.algorithm.consistencyWeight
-          : 0.0;
 
         // ★追加：前回の重み（この moment 自身が持つ）
         var prevWeightByChar = (moment.d3 && moment.d3.weightByChar) ? moment.d3.weightByChar : {};
 
-        computeWeightsBottomUp(moment.relationshipRoot, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
+        computeWeightsBottomUp(moment.relationshipRoot, refRank, fallbackWeight, prevWeightByChar, options);
 
         // 1) locationTree順固定（論文の location ordering 結果）
         var locRank = (moment.d3 && moment.d3.locRank) ? moment.d3.locRank : null;
@@ -2212,7 +1725,7 @@
 
       dataset.d3 = { time: [], timeStart: timeframe.start, timeEnd: timeframe.end };
 
-      for (var time = timeframe.start; time < timeframe.end; ++time) {
+      for (var time = timeframe.start; time <= timeframe.end; ++time) {
         var moment = { locations: [], sortedCharacters: [], relationshipRoot: null, d3: { weightByChar: {} } };
 
         // 1) この時刻に active な session を moment.locations に詰める（疎配列）
@@ -2268,21 +1781,10 @@
           moment.sortedCharacters = ordered;
           rebuildMomentLocationsFromTree(moment);
         }
-        if (!moment.d3) moment.d3 = {};
-        moment.d3.baseOrder = moment.sortedCharacters.slice();
         dataset.d3.time.push(moment);
 
         // デバッグ用（増えてるか確認）
         // console.log("[annotate] pushed time=", time, "frames now=", dataset.d3.time.length);
-      }
-
-      if (options.algorithm && options.algorithm.baseOrderOverride) {
-        var bo = options.algorithm.baseOrderOverride;
-        for (var tbo = 0; tbo < dataset.d3.time.length; tbo++) {
-          if (bo && bo[tbo]) {
-            dataset.d3.time[tbo].d3.baseOrder = bo[tbo].slice();
-          }
-        }
       }
 
       function computeRealizationMatrix(referenceMoment, currentMoment) {
@@ -2380,35 +1882,18 @@
           totalCrossings += computeCrossings(mB, curB.sortedCharacters, refB.sortedCharacters);
         }
 
-        function countKendallToBase(ds) {
-          var total = 0;
-          for (var t2 = 0; t2 < ds.d3.time.length; t2++) {
-            var moment2 = ds.d3.time[t2];
-            if (!moment2 || !moment2.sortedCharacters || !moment2.d3 || !moment2.d3.baseOrder) continue;
-            var kd = kendallDistance(moment2.d3.baseOrder, moment2.sortedCharacters);
-            total += kd.discordant;
-          }
-          return total;
-        }
-
-        var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
-          ? options.algorithm.consistencyWeight
-          : 0.0;
-        var totalKendall = countKendallToBase(dataset);
-        var totalScore = (1.0 - consistencyWeight) * totalCrossings + consistencyWeight * totalKendall;
-
-        // best 保存（交差 vs 一貫性の加重スコアで選択）
-        if (bestScore === null || totalScore <= bestScore) {
-          bestScore = totalScore;
+        // best 保存（交差数で選択）
+        if (bestScore === null || totalCrossings <= bestScore) {
+          bestScore = totalCrossings;
           bestDataset = jQuery.extend(true, {}, dataset);
         }
 
         // ---- paper-like stop: crossing が減らないなら止める ----
         if (lastTotalScore !== null) {
-          if (totalScore >= lastTotalScore) stableCount += 1;
+          if (totalCrossings >= lastTotalScore) stableCount += 1;
           else stableCount = 0;
         }
-        lastTotalScore = totalScore;
+        lastTotalScore = totalCrossings;
 
         if (stableCount >= (options.algorithm.stableNeeded || 1)) break;
       }
@@ -3331,12 +2816,7 @@
       function computeDatasetMetrics(ds) {
         var crossingsTotal = countCrossingsAll(ds);
         var crossingsAvg = 0;
-        var kendallSum = 0;
-        var kendallCount = 0;
-        var kendallDiscordant = 0;
-        var kendallPairs = 0;
         var crossingsSeries = [];
-        var kendallSeries = [];
 
         for (var t = 0; t < ds.d3.time.length - 1; t++) {
           var a = ds.d3.time[t].sortedCharacters;
@@ -3344,30 +2824,18 @@
           if (!a || !b) continue;
           var m = computeRealizationMatrix(a, b);
           var c = computeCrossings(m, a, b);
-          var kd = kendallDistance(a, b);
           crossingsSeries.push(c);
-          kendallSeries.push(kd.normalized);
-          kendallSum += kd.normalized;
-          kendallCount += 1;
-          kendallDiscordant += kd.discordant;
-          kendallPairs += kd.totalPairs;
         }
 
         if (ds.d3.time.length > 1) {
           crossingsAvg = crossingsTotal / (ds.d3.time.length - 1);
         }
 
-        var kendallAvg = kendallCount ? (kendallSum / kendallCount) : 0;
-        var kendallOverall = kendallPairs ? (kendallDiscordant / kendallPairs) : 0;
-
         ds.d3.metrics = {
           crossingsTotal: crossingsTotal,
           crossingsAvg: crossingsAvg,
-          kendallAvg: kendallAvg,
-          kendallOverall: kendallOverall,
           series: {
-            crossings: crossingsSeries,
-            kendall: kendallSeries
+            crossings: crossingsSeries
           }
         };
       }

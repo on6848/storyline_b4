@@ -3,7 +3,7 @@
 
 <head lang="en">
   <meta charset="UTF-8">
-  <title>StoryFlow: Tracking the Evolution of Stories</title>
+  <title>StoryFlow: Region Scale (Alpha Demo)</title>
   <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
   <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
 
@@ -72,6 +72,7 @@
       stroke: #eee;
     }
 
+
     #comparisons table {
       width: 100%;
       border-collapse: collapse;
@@ -123,8 +124,9 @@
       <tr>
         <td>
           <select name="dataset" id="dataset">
-            <option value="dataset/municipality_sessions.json">市区町村セッション</option>
-            <option value="dataset/prefecture_sessions.json">都道府県セッション</option>
+            <option value="dataset/municipality_sessions_alpha_demo.json">市区町村セッション（αデモ）</option>
+            <option value="dataset/prefecture_sessions_alpha_demo.json">都道府県セッション（αデモ）</option>
+            <option value="dataset/region_sessions_alpha_demo.json">地方セッション（αデモ）</option>
           </select>
         </td>
         <td>
@@ -144,9 +146,6 @@
         </td>
         <td style="padding-left:10px;">
           <button id="plotTradeoff">Plot Tradeoff</button>
-        </td>
-        <td style="padding-left:10px;">
-          <button id="animateWeight">Animate 0→1</button>
         </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
@@ -187,10 +186,16 @@
     </table>
   </div>
 
-  <div id="tradeoff" class="panel">
-    <h3>トレードオフ（配置一貫性重み vs 指標）</h3>
+  <div id="tradeoff01" class="panel">
+    <h3>トレードオフ（市区町村 vs 都道府県）</h3>
     <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
-    <svg id="tradeoffChart"></svg>
+    <svg id="tradeoffChart01"></svg>
+  </div>
+
+  <div id="tradeoff12" class="panel">
+    <h3>トレードオフ（都道府県 vs 地方）</h3>
+    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
+    <svg id="tradeoffChart12"></svg>
   </div>
 
   <div id="canvases"></div>
@@ -200,7 +205,15 @@
     var osqpModulePromise = null;
 
     var options = {
-      svg: { height: 700, width: 3000, topPadding: 55 },
+      svg: {
+        height: 700,
+        width: 3000,
+        topPadding: 55,
+        autoHeight: true,
+        minHeight: 480,
+        maxHeight: 1400,
+        rowHeight: 36
+      },
       animation: { transitionDuration: 700 },
       characters: {
         interpolation: "monotone",
@@ -229,7 +242,7 @@
           enabled: true,
           opacity: 0.28,
           padding: 16,
-          paddingStep: 10
+          paddingStep: 0
         }
       },
       algorithm: {
@@ -262,14 +275,6 @@
       }
     };
 
-    var weightAnimation = {
-      timer: null,
-      timeout: null,
-      values: null,
-      index: 0,
-      delayMs: 10000
-    };
-
     $(document).ready(function () {
       $("#dataset").selectmenu({
         width: 230,
@@ -298,19 +303,12 @@
         renderTradeoffChart();
       });
 
-      $("#animateWeight").button().on("click", function () {
-        if (weightAnimation.timer) {
-          stopWeightAnimation();
-        } else {
-          startWeightAnimation();
-        }
-      });
-
       $("#consistencyWeight").on("input change", function () {
         var v = parseFloat($(this).val());
         if (!isFinite(v)) return;
-        stopWeightAnimation();
-        setConsistencyWeight(v);
+        options.algorithm.consistencyWeight = v;
+        $("#consistencyWeightVal").text(v.toFixed(2));
+        renderAllDatasets();
       });
 
       $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
@@ -321,54 +319,6 @@
         renderAllDatasets();
       }
     });
-
-    function setConsistencyWeight(value) {
-      var v = Math.max(0, Math.min(1, value));
-      options.algorithm.consistencyWeight = v;
-      $("#consistencyWeight").val(v);
-      $("#consistencyWeightVal").text(v.toFixed(2));
-      renderAllDatasets();
-    }
-
-    function buildWeightSteps() {
-      var steps = [];
-      for (var w = 0; w <= 1.0001; w += 0.1) {
-        steps.push(parseFloat(w.toFixed(2)));
-      }
-      return steps;
-    }
-
-    function startWeightAnimation() {
-      weightAnimation.values = buildWeightSteps();
-      weightAnimation.index = 0;
-      setConsistencyWeight(weightAnimation.values[0]);
-      $("#animateWeight").text("Stop Animation");
-      if (weightAnimation.timer) clearInterval(weightAnimation.timer);
-      if (weightAnimation.timeout) clearTimeout(weightAnimation.timeout);
-      weightAnimation.timeout = setTimeout(function () {
-        weightAnimation.timer = setInterval(function () {
-          var next = weightAnimation.index + 1;
-          if (next >= weightAnimation.values.length) {
-            stopWeightAnimation();
-            return;
-          }
-          weightAnimation.index = next;
-          setConsistencyWeight(weightAnimation.values[weightAnimation.index]);
-        }, 900);
-      }, weightAnimation.delayMs);
-    }
-
-    function stopWeightAnimation() {
-      if (weightAnimation.timeout) {
-        clearTimeout(weightAnimation.timeout);
-        weightAnimation.timeout = null;
-      }
-      if (weightAnimation.timer) {
-        clearInterval(weightAnimation.timer);
-        weightAnimation.timer = null;
-        $("#animateWeight").text("Animate 0→1");
-      }
-    }
 
     function ensureOSQPReady(cb) {
       if (osqpModule) {
@@ -501,7 +451,8 @@
       var datasets = getDatasetListFromSelect();
       var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
       if (datasets.length < 2) {
-        d3.select("#tradeoffChart").html("");
+        d3.select("#tradeoffChart01").html("");
+        d3.select("#tradeoffChart12").html("");
         return;
       }
 
@@ -524,7 +475,6 @@
           localOptions.characters.toKeep = null;
           localOptions.algorithm.consistencyWeight = w;
           localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
-
           if (localOptions.bundle && localOptions.bundle.enabled) {
             localOptions.algorithm.din = 0;
           }
@@ -543,17 +493,18 @@
         return series;
       }
 
-      loadDataset(datasets[0], function (errA, jsonA) {
-        if (errA) {
-          drawTradeoffChart([]);
-          return;
-        }
-        loadDataset(datasets[1], function (errB, jsonB) {
-          if (errB) {
-            drawTradeoffChart([]);
+      function renderPair(idxA, idxB, svgId) {
+        loadDataset(datasets[idxA], function (errA, jsonA) {
+          if (errA) {
+            drawTradeoffChartTo([], svgId);
             return;
           }
-
+          loadDataset(datasets[idxB], function (errB, jsonB) {
+            if (errB) {
+              drawTradeoffChartTo([], svgId);
+              return;
+            }
+            
           // Build base order from dataset 1 (w=0) and reuse for both datasets.
           var seedSeries = buildSeries(jsonA, null);
           var baseOrders = [];
@@ -566,17 +517,25 @@
           var seriesA = buildSeries(jsonA, baseOrders);
           var seriesB = buildSeries(jsonB, baseOrders);
 
-          var results = [
-            { name: datasets[0].name, series: seriesA },
-            { name: datasets[1].name, series: seriesB }
-          ];
-          drawTradeoffChart(results);
+            var results = [
+              { name: datasets[idxA].name, series: seriesA },
+              { name: datasets[idxB].name, series: seriesB }
+            ];
+            drawTradeoffChartTo(results, svgId);
+          });
         });
-      });
+      }
+
+      renderPair(0, 1, "#tradeoffChart01");
+      if (datasets.length >= 3) {
+        renderPair(1, 2, "#tradeoffChart12");
+      } else {
+        d3.select("#tradeoffChart12").html("");
+      }
     }
 
-    function drawTradeoffChart(results) {
-      var svg = d3.select("#tradeoffChart");
+    function drawTradeoffChartTo(results, svgId) {
+      var svg = d3.select(svgId);
       svg.html("");
 
       var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
@@ -614,8 +573,8 @@
 
       if (paired.length === 0) return;
 
-      var width = 900;
-      var height = 260;
+      var width = 600;
+      var height = 400;
       var margin = { left: 50, right: 50, top: 16, bottom: 30 };
       var innerW = width - margin.left - margin.right;
       var innerH = height - margin.top - margin.bottom;
@@ -790,6 +749,7 @@
 
     function drawStoryFlow(dataset, options, svg, idPrefix) {
       idPrefix = idPrefix || "";
+
       var characterColors = dataset.characters.length <= 10 ? d3.scale.category10() : d3.scale.category20();
       var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
 
@@ -814,6 +774,50 @@
       }
 
       var axisPadding = 32;
+      var hasAnyQP = dataset.d3.time.some(function (tm) { return tm.d3 && tm.d3.y; });
+      var qpRange = null;
+
+      if (hasAnyQP) {
+        var minY = Infinity, maxY = -Infinity;
+
+        for (var t0 = 0; t0 < dataset.d3.time.length; t0++) {
+          var tm = dataset.d3.time[t0];
+          if (!tm.d3 || !tm.d3.y) continue;
+
+          for (var k0 = 0; k0 < tm.sortedCharacters.length; k0++) {
+            var cid0 = tm.sortedCharacters[k0];
+            var y0 = tm.d3.y[cid0];
+            if (y0 == null || !isFinite(y0)) continue;
+            if (y0 < minY) minY = y0;
+            if (y0 > maxY) maxY = y0;
+          }
+        }
+
+        if (isFinite(minY) && isFinite(maxY)) {
+          qpRange = { minY: minY, maxY: maxY, span: maxY - minY };
+        }
+      }
+
+      if (options.svg && options.svg.autoHeight) {
+        var rowHeight = (typeof options.svg.rowHeight === "number") ? options.svg.rowHeight
+          : (options.algorithm && typeof options.algorithm.din === "number") ? options.algorithm.din : 24;
+        var baseHeight = options.svg.topPadding + axisPadding + rowHeight * Math.max(1, maxCharacters);
+        var targetHeight = baseHeight;
+
+        if (qpRange) {
+          var qpHeight = options.svg.topPadding + axisPadding + qpRange.span;
+          if (qpHeight > targetHeight) targetHeight = qpHeight;
+        }
+
+        var minHeight = (typeof options.svg.minHeight === "number") ? options.svg.minHeight : 0;
+        var maxHeight = (typeof options.svg.maxHeight === "number") ? options.svg.maxHeight : 0;
+
+        if (minHeight && targetHeight < minHeight) targetHeight = minHeight;
+        if (maxHeight && targetHeight > maxHeight) targetHeight = maxHeight;
+
+        options.svg.height = Math.ceil(targetHeight);
+        svg.attr("height", options.svg.height);
+      }
       var axisY = options.svg.height - 16;
       var plotHeight = axisY - options.svg.topPadding;
 
@@ -855,26 +859,11 @@
       // =========================
       // QP y -> screen y transform
       // =========================
-      var hasAnyQP = dataset.d3.time.some(function (tm) { return tm.d3 && tm.d3.y; });
-
       var yA = 1.0, yB = 0.0; // y_screen = yA*y_qp + yB
 
-      if (hasAnyQP) {
-        var minY = Infinity, maxY = -Infinity;
-
-        for (var t0 = 0; t0 < dataset.d3.time.length; t0++) {
-          var tm = dataset.d3.time[t0];
-          if (!tm.d3 || !tm.d3.y) continue;
-
-          // このフレームに出てる人物だけで min/max（描画と一致）
-          for (var k0 = 0; k0 < tm.sortedCharacters.length; k0++) {
-            var cid0 = tm.sortedCharacters[k0];
-            var y0 = tm.d3.y[cid0];
-            if (y0 == null || !isFinite(y0)) continue;
-            if (y0 < minY) minY = y0;
-            if (y0 > maxY) maxY = y0;
-          }
-        }
+      if (hasAnyQP && qpRange) {
+        var minY = qpRange.minY;
+        var maxY = qpRange.maxY;
 
         if (isFinite(minY) && isFinite(maxY)) {
           var top = options.svg.topPadding;
@@ -1071,12 +1060,54 @@
         function buildHierarchyBands(ds) {
           var bandState = {};
           var timeStart = (ds.d3 && typeof ds.d3.timeStart === "number") ? ds.d3.timeStart : 0;
+          var sessionDepthTarget = null;
+
+          if (ds && ds.locationTree && ds.sessions) {
+            var depthById = {};
+            (function indexDepth(node, depth) {
+              if (!node) return;
+              if (typeof node.id === "number") depthById[node.id] = depth;
+              var kids = node.children || [];
+              for (var i = 0; i < kids.length; i++) {
+                indexDepth(kids[i], depth + 1);
+              }
+            })(ds.locationTree, -1);
+
+            var depthCounts = {};
+            for (var sIdx = 0; sIdx < ds.sessions.length; sIdx++) {
+              var sess = ds.sessions[sIdx];
+              var d = depthById[sess.location];
+              if (d === undefined) continue;
+              depthCounts[d] = (depthCounts[d] || 0) + 1;
+            }
+
+            var bestDepth = null;
+            var bestCount = -1;
+            for (var key in depthCounts) {
+              if (!depthCounts.hasOwnProperty(key)) continue;
+              var count = depthCounts[key];
+              var depth = parseInt(key, 10);
+              if (bestDepth === null || count > bestCount || (count === bestCount && depth < bestDepth)) {
+                bestDepth = depth;
+                bestCount = count;
+              }
+            }
+            sessionDepthTarget = bestDepth;
+          }
 
           function getState(key, depth, topKey, nodeType) {
             if (!bandState[key]) {
               bandState[key] = { key: key, depth: depth, topKey: topKey, nodeType: nodeType, segments: [], current: null };
             }
             return bandState[key];
+          }
+
+          function hasSessionChild(node) {
+            if (!node || !node.children) return false;
+            for (var i = 0; i < node.children.length; i++) {
+              if (node.children[i] && node.children[i].type === "session") return true;
+            }
+            return false;
           }
 
           function collectBounds(node, parentKey, depth, topKey, bounds, moment) {
@@ -1112,7 +1143,9 @@
               }
             }
 
-            if (node.type === "location" && cnt > 0) {
+            var directSession = hasSessionChild(node);
+            if (node.type === "location" && cnt > 0 && directSession &&
+              (sessionDepthTarget === null || depth === sessionDepthTarget)) {
               bounds[key] = { min: minY, max: maxY, depth: depth, topKey: nextTopKey, nodeType: node.type };
             }
 
@@ -1360,6 +1393,7 @@
         setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
         setCharacterLinesAttributes(lines.enter().append("path"))
           .on("click", function (d) {
+
             toggleCharacterHighlight(d);
 
             d3.select(this)
@@ -1449,6 +1483,24 @@
       function deepClone(obj) {
         return jQuery.extend(true, {}, obj);
       }
+
+      function buildLocationPathMap(root) {
+        var map = {};
+
+        function dfs(node, path) {
+          if (!node) return;
+          if (typeof node.id === "number") map[node.id] = path.slice();
+          var kids = node.children || [];
+          for (var i = 0; i < kids.length; i++) {
+            dfs(kids[i], path.concat([i]));
+          }
+        }
+
+        dfs(root, []);
+        return map;
+      }
+
+      var locationPathMap = dataset.locationTree ? buildLocationPathMap(dataset.locationTree) : null;
 
       // locationTree の各ノードに parent を付け、id→node の辞書を作る
       function indexLocationTree(root) {
@@ -1877,6 +1929,164 @@
         node.children = locTreeKids.concat(otherKids);
       }
 
+      function hasDirectSessionChild(node) {
+        if (!node || !node.children) return false;
+        for (var i = 0; i < node.children.length; i++) {
+          if (node.children[i] && node.children[i].type === "session") return true;
+        }
+        return false;
+      }
+
+      function collectActiveLocationInfo(root) {
+        var seen = {};
+        var ordered = [];
+
+        function walk(node) {
+          if (!node) return;
+          if (node.type === "location" && hasDirectSessionChild(node)) {
+            var id = node.id;
+            if (seen[id] !== true) {
+              seen[id] = true;
+              ordered.push(id);
+            }
+          }
+          if (node.children) node.children.forEach(walk);
+        }
+
+        walk(root);
+
+        var ids = [];
+        for (var k in seen) {
+          if (seen.hasOwnProperty(k)) ids.push(parseInt(k, 10));
+        }
+        ids.sort(function (a, b) { return a - b; });
+
+        return { ids: ids, order: ordered };
+      }
+
+      function buildLocRankFromOrder(order) {
+        var rank = {};
+        for (var i = 0; i < order.length; i++) rank[order[i]] = i;
+        return rank;
+      }
+
+      function collectEntitiesInOrderWithLocRank(node, out, locRank) {
+        if (!node) return;
+        if (node.type === "entity") {
+          out.push(node.id);
+          return;
+        }
+        if (!node.children) return;
+
+        var isLocTreeNode = (node.type === "root" || node.type === "locGroup" || node.type === "location");
+        var kids = node.children;
+        if (!isLocTreeNode) {
+          for (var i = 0; i < kids.length; i++) {
+            collectEntitiesInOrderWithLocRank(kids[i], out, locRank);
+          }
+          return;
+        }
+
+        var locTreeKids = [];
+        var otherKids = [];
+        for (var k = 0; k < kids.length; k++) {
+          var ch = kids[k];
+          if (ch && (ch.type === "locGroup" || ch.type === "location")) locTreeKids.push(ch);
+          else otherKids.push(ch);
+        }
+
+        if (locTreeKids.length > 1 && locRank) {
+          var fallback = 1e18;
+          locTreeKids.sort(function (a, b) {
+            var ra = minLocRankInSubtree(a, locRank, fallback);
+            var rb = minLocRankInSubtree(b, locRank, fallback);
+            if (ra !== rb) return ra - rb;
+            var na = (a.name || "") + ":" + (a.id || "");
+            var nb = (b.name || "") + ":" + (b.id || "");
+            return na < nb ? -1 : (na > nb ? 1 : 0);
+          });
+        }
+
+        var orderedKids = locTreeKids.concat(otherKids);
+        for (var j = 0; j < orderedKids.length; j++) {
+          collectEntitiesInOrderWithLocRank(orderedKids[j], out, locRank);
+        }
+      }
+
+      function findBestLocRankByScore(root, referenceSortedCharacters, alpha, maxPermute) {
+        if (!root) return null;
+
+        var info = collectActiveLocationInfo(root);
+        var activeLocIds = info.ids;
+        if (activeLocIds.length <= 1) {
+          return activeLocIds.length ? buildLocRankFromOrder(activeLocIds) : null;
+        }
+
+        var w = (typeof alpha === "number") ? alpha : 0.0;
+        if (w < 0) w = 0;
+        if (w > 1) w = 1;
+
+        var targetOrder = orderLocationIdsByTree(activeLocIds, locationPathMap);
+
+        function scoreForOrder(order) {
+          var locRank = buildLocRankFromOrder(order);
+          var currentOrder = [];
+          collectEntitiesInOrderWithLocRank(root, currentOrder, locRank);
+
+          var crossNorm = 0;
+          if (referenceSortedCharacters && referenceSortedCharacters.length > 1 && currentOrder.length > 1) {
+            var kdCross = kendallDistance(referenceSortedCharacters, currentOrder);
+            crossNorm = kdCross.normalized;
+          }
+
+          var stableNorm = 0;
+          if (targetOrder && targetOrder.length > 1) {
+            var kdStable = kendallDistance(order, targetOrder);
+            stableNorm = kdStable.normalized;
+          }
+
+          return (1.0 - w) * crossNorm + w * stableNorm;
+        }
+
+        var bestOrder = targetOrder.slice();
+        var bestScore = scoreForOrder(bestOrder);
+        var limit = (typeof maxPermute === "number") ? maxPermute : 7;
+
+        function consider(order) {
+          var s = scoreForOrder(order);
+          if (s < bestScore) {
+            bestScore = s;
+            bestOrder = order.slice();
+          }
+        }
+
+        if (activeLocIds.length > limit) {
+          if (info.order && info.order.length) consider(info.order);
+          consider(activeLocIds);
+          return buildLocRankFromOrder(bestOrder);
+        }
+
+        var perm = new Array(activeLocIds.length);
+        var usedPerm = new Array(activeLocIds.length);
+
+        function backtrack(depth) {
+          if (depth === activeLocIds.length) {
+            consider(perm);
+            return;
+          }
+          for (var p = 0; p < activeLocIds.length; p++) {
+            if (usedPerm[p]) continue;
+            usedPerm[p] = true;
+            perm[depth] = activeLocIds[p];
+            backtrack(depth + 1);
+            usedPerm[p] = false;
+          }
+        }
+
+        backtrack(0);
+        return buildLocRankFromOrder(bestOrder);
+      }
+
 
       // 参照フレームを使って moment.relationshipRoot を並べ替え、moment.sortedCharacters/locations を更新
       function sortMomentByRelationshipTree(moment, referenceSortedCharacters, options) {
@@ -1896,12 +2106,19 @@
 
         computeWeightsBottomUp(moment.relationshipRoot, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
 
-        // 1) locationTree順固定（論文の location ordering 結果）
-        var locRank = (moment.d3 && moment.d3.locRank) ? moment.d3.locRank : null;
-        applyFixedLocationOrder(moment.relationshipRoot, locRank);
-
-        // 2) 追加：barycenter による level-by-level bottom-up sort
+        // 1) barycenter による level-by-level bottom-up sort
         barycenterSortBottomUp(moment.relationshipRoot);
+
+        // 2) locationTree順固定（αに応じて交差最小化↔安定をブレンド）
+        var locRank = findBestLocRankByScore(moment.relationshipRoot, referenceSortedCharacters, consistencyWeight, 7);
+        if (!locRank) {
+          locRank = (moment.d3 && moment.d3.locRank) ? moment.d3.locRank : null;
+        }
+        if (locRank) {
+          if (!moment.d3) moment.d3 = {};
+          moment.d3.locRank = locRank;
+        }
+        applyFixedLocationOrder(moment.relationshipRoot, locRank);
 
         // 3) （ここで sortNonLocationNodesBottomUp は不要になる）
         // sortNonLocationNodesBottomUp(moment.relationshipRoot);  // ←消してOK
@@ -1971,6 +2188,25 @@
       // -----------------------------
       // Location ordering (5.2 part-1): greedy insertion
       // -----------------------------
+
+      function orderLocationIdsByTree(locIds, pathMap) {
+        if (!pathMap) return locIds.slice();
+        var ids = locIds.slice();
+        ids.sort(function (a, b) {
+          var pa = pathMap[a];
+          var pb = pathMap[b];
+          if (!pa && !pb) return a - b;
+          if (!pa) return 1;
+          if (!pb) return -1;
+          var len = Math.min(pa.length, pb.length);
+          for (var i = 0; i < len; i++) {
+            if (pa[i] !== pb[i]) return pa[i] - pb[i];
+          }
+          if (pa.length !== pb.length) return pa.length - pb.length;
+          return a - b;
+        });
+        return ids;
+      }
 
       // time t と t+1 の「character -> location」を作る（その時刻に active な session を優先）
       // 1人が複数セッションに入るデータは無い前提（あなたの仕様）
@@ -2076,6 +2312,55 @@
         return placed;
       }
 
+      function blendLocationOrder(greedyOrder, treeOrder, alpha) {
+        if (!isFinite(alpha) || alpha <= 0) return greedyOrder.slice();
+        if (alpha >= 1) return treeOrder.slice();
+
+        var rankGreedy = {};
+        var rankTree = {};
+        for (var i = 0; i < greedyOrder.length; i++) rankGreedy[greedyOrder[i]] = i;
+        for (var j = 0; j < treeOrder.length; j++) rankTree[treeOrder[j]] = j;
+
+        var ids = greedyOrder.slice();
+        ids.sort(function (a, b) {
+          var rgA = (rankGreedy[a] !== undefined) ? rankGreedy[a] : 1e9;
+          var rgB = (rankGreedy[b] !== undefined) ? rankGreedy[b] : 1e9;
+          var rtA = (rankTree[a] !== undefined) ? rankTree[a] : 1e9;
+          var rtB = (rankTree[b] !== undefined) ? rankTree[b] : 1e9;
+
+          var scoreA = (1 - alpha) * rgA + alpha * rtA;
+          var scoreB = (1 - alpha) * rgB + alpha * rtB;
+          if (scoreA !== scoreB) return scoreA - scoreB;
+          if (rtA !== rtB) return rtA - rtB;
+          if (rgA !== rgB) return rgA - rgB;
+          return a - b;
+        });
+        return ids;
+      }
+
+      function orderLocIdsByRank(activeLocIds, locRank) {
+        var ids = activeLocIds.slice();
+        ids.sort(function (a, b) {
+          var ra = (locRank && locRank[a] !== undefined) ? locRank[a] : 1e18;
+          var rb = (locRank && locRank[b] !== undefined) ? locRank[b] : 1e18;
+          if (ra !== rb) return ra - rb;
+          return a - b;
+        });
+        return ids;
+      }
+
+      function computeLocationOrder(activeLocIds, dataset, time, nextTime, alpha, relationshipRoot, referenceSortedCharacters) {
+        if (relationshipRoot && referenceSortedCharacters && referenceSortedCharacters.length > 0) {
+          var bestRank = findBestLocRankByScore(relationshipRoot, referenceSortedCharacters, alpha, 7);
+          if (bestRank) {
+            return orderLocIdsByRank(activeLocIds, bestRank);
+          }
+        }
+
+        if (locationPathMap) return orderLocationIdsByTree(activeLocIds, locationPathMap);
+        return greedyOrderLocations(activeLocIds, dataset, time, nextTime);
+      }
+
       // moment.locations を「locOrderIds（上→下）」の順に並べ替える
       function reorderMomentLocationsById(moment, locOrderIds) {
         var newArr = [];
@@ -2158,11 +2443,17 @@
             if (moment.locations[lid] !== undefined) activeLocIds.push(lid);
           }
 
-          var orderedLocIds = greedyOrderLocations(
+          var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+            ? options.algorithm.consistencyWeight
+            : 0.0;
+          var orderedLocIds = computeLocationOrder(
             activeLocIds,
             dataset,
             timeIndex,
-            (nextTimeIndex !== null ? nextTimeIndex : null)
+            (nextTimeIndex !== null ? nextTimeIndex : null),
+            consistencyWeight,
+            null,
+            null
           );
 
           reorderMomentLocationsById(moment, orderedLocIds);
@@ -2244,7 +2535,20 @@
           if (moment.locations[lid] !== undefined) activeLocIds.push(lid);
         }
 
-        var orderedLocIds = greedyOrderLocations(activeLocIds, dataset, time, nextTime);
+        var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+          ? options.algorithm.consistencyWeight
+          : 0.0;
+        var prevMoment = (dataset.d3.time.length > 0) ? dataset.d3.time[dataset.d3.time.length - 1] : null;
+        var prevSorted = (prevMoment && prevMoment.sortedCharacters) ? prevMoment.sortedCharacters : null;
+        var orderedLocIds = computeLocationOrder(
+          activeLocIds,
+          dataset,
+          time,
+          nextTime,
+          consistencyWeight,
+          moment.relationshipRoot,
+          prevSorted
+        );
 
         reorderRelationshipTreeLocationsByOrder(moment.relationshipRoot, orderedLocIds);
         rebuildMomentLocationsFromTree(moment);

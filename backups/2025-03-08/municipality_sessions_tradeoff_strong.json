@@ -1,0 +1,80 @@
+{
+  "characters": [
+    { "id": 0, "name": "A" },
+    { "id": 1, "name": "B" },
+    { "id": 2, "name": "C" },
+    { "id": 3, "name": "D" },
+    { "id": 4, "name": "E" },
+    { "id": 5, "name": "F" },
+    { "id": 6, "name": "G" },
+    { "id": 7, "name": "H" },
+    { "id": 8, "name": "I" },
+    { "id": 9, "name": "J" },
+    { "id": 10, "name": "K" },
+    { "id": 11, "name": "L" }
+  ],
+  "locations": [
+    { "id": 0, "name": "City-1" },
+    { "id": 1, "name": "City-2" },
+    { "id": 2, "name": "City-3" },
+    { "id": 3, "name": "City-4" },
+    { "id": 4, "name": "City-5" },
+    { "id": 5, "name": "City-6" }
+  ],
+  "sessions": [
+    { "id": 0, "location": 0, "members": [0, 1], "start": 0, "end": 2 },
+    { "id": 1, "location": 1, "members": [2, 3], "start": 0, "end": 2 },
+    { "id": 2, "location": 2, "members": [4, 5], "start": 0, "end": 2 },
+    { "id": 3, "location": 3, "members": [6, 7], "start": 0, "end": 2 },
+    { "id": 4, "location": 4, "members": [8, 9], "start": 0, "end": 2 },
+    { "id": 5, "location": 5, "members": [10, 11], "start": 0, "end": 2 },
+
+    { "id": 6, "location": 0, "members": [0, 5], "start": 2, "end": 4 },
+    { "id": 7, "location": 1, "members": [1, 4], "start": 2, "end": 4 },
+    { "id": 8, "location": 2, "members": [2, 11], "start": 2, "end": 4 },
+    { "id": 9, "location": 3, "members": [3, 10], "start": 2, "end": 4 },
+    { "id": 10, "location": 4, "members": [6, 9], "start": 2, "end": 4 },
+    { "id": 11, "location": 5, "members": [7, 8], "start": 2, "end": 4 },
+
+    { "id": 12, "location": 0, "members": [0, 11], "start": 4, "end": 6 },
+    { "id": 13, "location": 1, "members": [1, 10], "start": 4, "end": 6 },
+    { "id": 14, "location": 2, "members": [2, 9], "start": 4, "end": 6 },
+    { "id": 15, "location": 3, "members": [3, 8], "start": 4, "end": 6 },
+    { "id": 16, "location": 4, "members": [4, 7], "start": 4, "end": 6 },
+    { "id": 17, "location": 5, "members": [5, 6], "start": 4, "end": 6 },
+
+    { "id": 18, "location": 0, "members": [0, 6], "start": 6, "end": 8 },
+    { "id": 19, "location": 1, "members": [1, 7], "start": 6, "end": 8 },
+    { "id": 20, "location": 2, "members": [2, 8], "start": 6, "end": 8 },
+    { "id": 21, "location": 3, "members": [3, 9], "start": 6, "end": 8 },
+    { "id": 22, "location": 4, "members": [4, 10], "start": 6, "end": 8 },
+    { "id": 23, "location": 5, "members": [5, 11], "start": 6, "end": 8 }
+  ],
+  "locationTree": {
+    "id": "root",
+    "name": "Root",
+    "children": [
+      {
+        "name": "Prefecture X",
+        "children": [
+          { "id": 0, "name": "City-1", "children": [] },
+          { "id": 1, "name": "City-2", "children": [] }
+        ]
+      },
+      {
+        "name": "Prefecture Y",
+        "children": [
+          { "id": 2, "name": "City-3", "children": [] },
+          { "id": 3, "name": "City-4", "children": [] }
+        ]
+      },
+      {
+        "name": "Prefecture Z",
+        "children": [
+          { "id": 4, "name": "City-5", "children": [] },
+          { "id": 5, "name": "City-6", "children": [] }
+        ]
+      }
+    ]
+  }
+}

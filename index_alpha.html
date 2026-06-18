@@ -1,0 +1,3751 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+
+<head lang="en">
+    <meta charset="UTF-8">
+    <title>StoryFlow: Region Scale (Alpha Demo)</title>
+    <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
+    <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
+
+    <script type="text/javascript" src="lib/d3.v3.js"></script>
+    <script type="text/javascript" src="lib/jquery-ui-1.11.4/external/jquery/jquery.js"></script>
+    <script type="text/javascript" src="lib/jquery-ui-1.11.4/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="lib/jquery.sumoselect/jquery.sumoselect.js"></script>
+    <script type="text/javascript" src="lib/osqp/osqp.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: sans-serif;
+        }
+
+        #controls {
+            position: sticky;
+            top: 0;
+            background: #fff;
+            z-index: 10;
+            padding: 10px 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #canvases {
+            padding: 12px;
+        }
+
+        .panel {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            padding: 10px 10px 0 10px;
+            background: #fafafa;
+        }
+
+        .panel h3 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .panel .meta {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: #999;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            font-size: 10px;
+            fill: #666;
+        }
+
+        .timeGrid path {
+            display: none;
+        }
+
+        .timeGrid line {
+            stroke: #eee;
+        }
+
+
+        #comparisons table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        #comparisons th,
+        #comparisons td {
+            border: 1px solid #ddd;
+            padding: 4px 6px;
+            text-align: left;
+        }
+
+        #comparisons th {
+            background: #f2f2f2;
+        }
+
+        #tradeoffChart {
+            display: block;
+            width: 100%;
+            height: 260px;
+            background: #fff;
+            border: 1px solid #eee;
+            border-radius: 6px;
+        }
+
+        .tradeoffLine {
+            fill: none;
+            stroke-width: 2;
+        }
+
+        .tradeoffAxis path,
+        .tradeoffAxis line {
+            fill: none;
+            stroke: #999;
+            shape-rendering: crispEdges;
+        }
+
+        .tradeoffAxis text {
+            font-size: 10px;
+            fill: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="controls">
+        <table>
+            <tr>
+                <td>
+                    <select name="dataset" id="dataset">
+                        <option value="dataset/municipality_sessions_alpha_demo.json">市区町村セッション（αデモ）</option>
+                        <option value="dataset/prefecture_sessions_alpha_demo.json">都道府県セッション（αデモ）</option>
+                        <option value="dataset/region_sessions_alpha_demo.json">地方セッション（αデモ）</option>
+                    </select>
+                </td>
+                <td>
+                    <select name="interpolation" id="interpolation">
+                        <option value="linear">Linear</option>
+                        <option value="step">Step</option>
+                        <option value="step-before">Step-before</option>
+                        <option value="step-after">Step-after</option>
+                        <option value="basis">Basis</option>
+                        <option value="bundle">Bundle</option>
+                        <option value="cardinal">Cardinal</option>
+                        <option value="monotone" selected>Monotone</option>
+                    </select>
+                </td>
+                <td style="padding-left:10px;">
+                    <button id="redrawAll">Redraw All</button>
+                </td>
+                <td style="padding-left:10px;">
+                    <button id="plotTradeoff">Plot Tradeoff</button>
+                </td>
+                <td style="padding-left:12px; font-size:12px;">
+                    <label>
+                        <input type="checkbox" id="bundleToggle" />
+                        LOD バンドリング
+                    </label>
+                </td>
+                <td style="padding-left:12px; font-size:12px;">
+                    <label>
+                        配置一貫性重み
+                        <input type="range" id="consistencyWeight" min="0" max="1" step="0.05" value="0" />
+                        <span id="consistencyWeightVal">0.00</span>
+                    </label>
+                </td>
+                <td style="padding-left:12px; font-size:12px;">
+                    <a href="index_extra.html">交差多めの別ページ</a>
+                </td>
+            </tr>
+        </table>
+        <div style="font-size:12px;color:#666;margin-top:6px;">
+            上から全データセットを縦に積んで表示します（比較用）。切替はしません。
+        </div>
+    </div>
+
+    <div id="comparisons" class="panel">
+        <h3>スケール間比較</h3>
+        <div class="meta">同時刻における順位差（Kendall距離）の平均を表示します。</div>
+        <table id="comparisonTable">
+            <thead>
+                <tr>
+                    <th>比較ペア</th>
+                    <th>配置変化率(Kendall平均)</th>
+                    <th>交差数合計(2レイアウト)</th>
+                    <th>重なりフレーム数</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div id="tradeoff01" class="panel">
+        <h3>トレードオフ（市区町村 vs 都道府県）</h3>
+        <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
+        <svg id="tradeoffChart01"></svg>
+    </div>
+
+    <div id="tradeoff12" class="panel">
+        <h3>トレードオフ（都道府県 vs 地方）</h3>
+        <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
+        <svg id="tradeoffChart12"></svg>
+    </div>
+
+    <div id="canvases"></div>
+
+    <script type="text/javascript">
+        var osqpModule = null;
+        var osqpModulePromise = null;
+
+        var options = {
+            svg: {
+                height: 700,
+                width: 3000,
+                topPadding: 55,
+                autoHeight: true,
+                minHeight: 480,
+                maxHeight: 1400,
+                rowHeight: 36
+            },
+            animation: { transitionDuration: 700 },
+            characters: {
+                interpolation: "monotone",
+                class: "line",
+                labelClass: "name",
+                labelX: 4,
+                labelDy: -4,
+                sessionCoefficient: 2,
+                strokeWidth: 4,
+                highlightStrokeWidth: 8,
+                highlightDuration: 300,
+                nonHighlightedOpacity: 0.2,
+                toKeep: null
+            },
+            locations: {
+                interpolation: "monotone",
+                fontSize: "26px",
+                labelX: 30,
+                labelDy: -10,
+                padding: 18,
+                opacity: 0.2,
+                class: "locationPath",
+                labelClass: "locationLabel",
+                splitLength: 400,
+                hierarchy: {
+                    enabled: true,
+                    opacity: 0.28,
+                    padding: 16,
+                    paddingStep: 0
+                }
+            },
+            algorithm: {
+                sweepingMaxIterations: 20,
+                stableNeeded: 2,              // 不足⑤で使ってるなら統一
+                missingEntityPolicy: "hold",  // "hold" | "bottom"
+                missingEntityPenalty: 100000,  // "bottom" のときの大きい値
+
+                // ---- 5.3 / 5.4 ----
+                alpha: 0.1,          // 5.3 session sim の α
+                din: 36,             // 5.4 (5c) 同一セッション内の隣接距離
+                dout: 72,            // 5.4 (5d) 異セッション間の最小距離
+                epsOrder: 1e-3,      // 5.4 (5a) orderの厳密性
+
+                lambdaWhite: 0.05,   // 目的関数：whitespace項の重み
+                consistencyWeight: 0.0,   // 0..1: crossing優先 ↔ 配置一貫性優先
+
+                // ADMM solver settings
+                rho: 2.0,
+                sigma: 1e-6,         // (Q + rho A^T A + sigma I) を正則化
+                maxIterQP: 4000,
+                epsAbs: 1e-6,
+                epsRel: 1e-6,
+                useOSQP: true
+            },
+            bundle: {
+                enabled: false,
+                lineWidth: 6,
+                opacity: 0.6
+            }
+        };
+
+        $(document).ready(function () {
+            $("#dataset").selectmenu({
+                width: 230,
+                select: function () { }
+            });
+
+            $("#interpolation").selectmenu({
+                width: 200,
+                select: function (event, ui) {
+                    options.characters.interpolation = ui.item.value;
+                    options.locations.interpolation = options.characters.interpolation;
+                    renderAllDatasets();
+                }
+            });
+
+            $("#redrawAll").button().on("click", function () {
+                renderAllDatasets();
+            });
+
+            $("#bundleToggle").on("change", function () {
+                options.bundle.enabled = $(this).is(":checked");
+                renderAllDatasets();
+            });
+
+            $("#plotTradeoff").button().on("click", function () {
+                renderTradeoffChart();
+            });
+
+            $("#consistencyWeight").on("input change", function () {
+                var v = parseFloat($(this).val());
+                if (!isFinite(v)) return;
+                options.algorithm.consistencyWeight = v;
+                $("#consistencyWeightVal").text(v.toFixed(2));
+                renderAllDatasets();
+            });
+
+            $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
+
+            if (options.algorithm.useOSQP) {
+                ensureOSQPReady(renderAllDatasets);
+            } else {
+                renderAllDatasets();
+            }
+        });
+
+        function ensureOSQPReady(cb) {
+            if (osqpModule) {
+                cb();
+                return;
+            }
+            if (typeof OSQPModule !== "function") {
+                cb();
+                return;
+            }
+            if (!osqpModulePromise) {
+                osqpModulePromise = OSQPModule()
+                    .then(function (mod) {
+                        osqpModule = mod;
+                        return mod;
+                    })
+                    .catch(function (err) {
+                        console.error("OSQPModule init failed:", err);
+                        return null;
+                    });
+            }
+            osqpModulePromise.then(function () { cb(); });
+        }
+
+        function getDatasetListFromSelect() {
+            var list = [];
+            $("#dataset option").each(function () {
+                list.push({ path: $(this).attr("value"), name: $(this).text() });
+            });
+            return list;
+        }
+
+        function kendallDistance(orderA, orderB) {
+            var rankA = {};
+            var rankB = {};
+            for (var i = 0; i < orderA.length; i++) rankA[orderA[i]] = i;
+            for (var j = 0; j < orderB.length; j++) rankB[orderB[j]] = j;
+
+            var common = [];
+            for (var k = 0; k < orderA.length; k++) {
+                var id = orderA[k];
+                if (rankB[id] !== undefined) common.push(id);
+            }
+
+            var n = common.length;
+            if (n < 2) return { discordant: 0, totalPairs: 0, normalized: 0, n: n };
+
+            var discordant = 0;
+            for (var i2 = 0; i2 < n - 1; i2++) {
+                var ai = common[i2];
+                for (var j2 = i2 + 1; j2 < n; j2++) {
+                    var aj = common[j2];
+                    var signA = rankA[ai] - rankA[aj];
+                    var signB = rankB[ai] - rankB[aj];
+                    if ((signA > 0 && signB < 0) || (signA < 0 && signB > 0)) discordant++;
+                }
+            }
+
+            var totalPairs = n * (n - 1) / 2;
+            var normalized = totalPairs ? (discordant / totalPairs) : 0;
+            return { discordant: discordant, totalPairs: totalPairs, normalized: normalized, n: n };
+        }
+
+        function computeCrossScaleComparisons(list) {
+            var rows = [];
+            for (var i = 0; i < list.length; i++) {
+                for (var j = i + 1; j < list.length; j++) {
+                    var a = list[i];
+                    var b = list[j];
+                    var aData = a.data;
+                    var bData = b.data;
+
+                    var cA = (aData && aData.d3 && aData.d3.metrics && typeof aData.d3.metrics.crossingsTotal === "number")
+                        ? aData.d3.metrics.crossingsTotal : null;
+                    var cB = (bData && bData.d3 && bData.d3.metrics && typeof bData.d3.metrics.crossingsTotal === "number")
+                        ? bData.d3.metrics.crossingsTotal : null;
+                    var crossingsTotal = (cA !== null && cB !== null) ? (cA + cB) : null;
+
+                    var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
+                    var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
+
+                    var sum = 0;
+                    var count = 0;
+                    for (var t = start; t < end; t++) {
+                        var idxA = t - aData.d3.timeStart;
+                        var idxB = t - bData.d3.timeStart;
+                        var momentA = aData.d3.time[idxA];
+                        var momentB = bData.d3.time[idxB];
+                        if (!momentA || !momentB) continue;
+                        if (!momentA.sortedCharacters || !momentB.sortedCharacters) continue;
+
+                        var kd = kendallDistance(momentA.sortedCharacters, momentB.sortedCharacters);
+                        if (kd.totalPairs === 0) continue;
+                        sum += kd.normalized;
+                        count++;
+                    }
+
+                    rows.push({
+                        aName: a.name,
+                        bName: b.name,
+                        kendallAvg: count ? (sum / count) : null,
+                        crossingsTotal: crossingsTotal,
+                        overlap: count
+                    });
+                }
+            }
+            return rows;
+        }
+
+        function renderComparisonTable(rows) {
+            var table = d3.select("#comparisonTable");
+            var body = table.select("tbody");
+
+            var sel = body.selectAll("tr").data(rows);
+            sel.enter().append("tr");
+            sel.html(function (d) {
+                var kText = (d.kendallAvg === null) ? "-" : d.kendallAvg.toFixed(3);
+                var cText = (d.crossingsTotal === null || d.crossingsTotal === undefined) ? "-" : d.crossingsTotal;
+                return "<td>" + d.aName + " × " + d.bName + "</td>" +
+                    "<td>" + kText + "</td>" +
+                    "<td>" + cText + "</td>" +
+                    "<td>" + d.overlap + "</td>";
+            });
+            sel.exit().remove();
+
+            d3.select("#comparisons").style("display", rows.length ? "block" : "none");
+        }
+
+        function renderTradeoffChart() {
+            var datasets = getDatasetListFromSelect();
+            var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+            if (datasets.length < 2) {
+                d3.select("#tradeoffChart01").html("");
+                d3.select("#tradeoffChart12").html("");
+                return;
+            }
+
+            function loadDataset(dsInfo, cb) {
+                d3.json(dsInfo.path, function (error, json) {
+                    if (error) {
+                        console.error(error);
+                        cb(error);
+                        return;
+                    }
+                    cb(null, json);
+                });
+            }
+
+            function buildSeries(json, baseOrderOverride) {
+                var series = [];
+                weights.forEach(function (w) {
+                    var local = jQuery.extend(true, {}, json);
+                    var localOptions = jQuery.extend(true, {}, options);
+                    localOptions.characters.toKeep = null;
+                    localOptions.algorithm.consistencyWeight = w;
+                    localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
+                    if (localOptions.bundle && localOptions.bundle.enabled) {
+                        localOptions.algorithm.din = 0;
+                    }
+
+                    var annotated = annotateDataset(local, localOptions);
+                    var metrics = annotated && annotated.d3 ? annotated.d3.metrics : null;
+                    if (metrics) {
+                        series.push({
+                            w: w,
+                            crossingsAvg: metrics.crossingsAvg,
+                            kendallAvg: metrics.kendallAvg,
+                            data: annotated
+                        });
+                    }
+                });
+                return series;
+            }
+
+            function renderPair(idxA, idxB, svgId) {
+                loadDataset(datasets[idxA], function (errA, jsonA) {
+                    if (errA) {
+                        drawTradeoffChartTo([], svgId);
+                        return;
+                    }
+                    loadDataset(datasets[idxB], function (errB, jsonB) {
+                        if (errB) {
+                            drawTradeoffChartTo([], svgId);
+                            return;
+                        }
+
+                        // Build base order from dataset 1 (w=0) and reuse for both datasets.
+                        var seedSeries = buildSeries(jsonA, null);
+                        var baseOrders = [];
+                        if (seedSeries.length > 0 && seedSeries[0].data && seedSeries[0].data.d3) {
+                            baseOrders = seedSeries[0].data.d3.time.map(function (m) {
+                                return (m.d3 && m.d3.baseOrder) ? m.d3.baseOrder.slice() : null;
+                            });
+                        }
+
+                        var seriesA = buildSeries(jsonA, baseOrders);
+                        var seriesB = buildSeries(jsonB, baseOrders);
+
+                        var results = [
+                            { name: datasets[idxA].name, series: seriesA },
+                            { name: datasets[idxB].name, series: seriesB }
+                        ];
+                        drawTradeoffChartTo(results, svgId);
+                    });
+                });
+            }
+
+            renderPair(0, 1, "#tradeoffChart01");
+            if (datasets.length >= 3) {
+                renderPair(1, 2, "#tradeoffChart12");
+            } else {
+                d3.select("#tradeoffChart12").html("");
+            }
+        }
+
+        function drawTradeoffChartTo(results, svgId) {
+            var svg = d3.select(svgId);
+            svg.html("");
+
+            var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
+            if (valid.length < 2) return;
+
+            var paired = [];
+            var len = Math.min(valid[0].series.length, valid[1].series.length);
+            for (var i = 0; i < len; i++) {
+                var a = valid[0].series[i];
+                var b = valid[1].series[i];
+                if (a.w !== b.w) continue;
+
+                var start = Math.max(a.data.d3.timeStart, b.data.d3.timeStart);
+                var end = Math.min(a.data.d3.timeEnd, b.data.d3.timeEnd);
+
+                var sum = 0;
+                var count = 0;
+                for (var t = start; t < end; t++) {
+                    var ia = t - a.data.d3.timeStart;
+                    var ib = t - b.data.d3.timeStart;
+                    var ma = a.data.d3.time[ia];
+                    var mb = b.data.d3.time[ib];
+                    if (!ma || !mb || !ma.sortedCharacters || !mb.sortedCharacters) continue;
+                    var kd = kendallDistance(ma.sortedCharacters, mb.sortedCharacters);
+                    if (kd.totalPairs === 0) continue;
+                    sum += kd.normalized;
+                    count++;
+                }
+
+                var kAvg = count ? (sum / count) : 0;
+                var cTotal = (a.data.d3 && a.data.d3.metrics ? a.data.d3.metrics.crossingsTotal : 0) +
+                    (b.data.d3 && b.data.d3.metrics ? b.data.d3.metrics.crossingsTotal : 0);
+                paired.push({ w: a.w, crossingsTotal: cTotal, kendallAvg: kAvg });
+            }
+
+            if (paired.length === 0) return;
+
+            var width = 600;
+            var height = 400;
+            var margin = { left: 50, right: 50, top: 16, bottom: 30 };
+            var innerW = width - margin.left - margin.right;
+            var innerH = height - margin.top - margin.bottom;
+
+            svg.attr("width", width).attr("height", height);
+
+            var maxCross = d3.max(paired, function (d) { return d.crossingsTotal; }) || 1;
+            paired.forEach(function (d) {
+                d.crossingsNorm = maxCross ? (d.crossingsTotal / maxCross) : 0;
+            });
+
+            var x = d3.scale.linear().domain([0, 1]).range([0, innerW]);
+            var yKen = d3.scale.linear().domain([0, 1]).range([innerH, 0]);
+            var yCross = yKen;
+
+            var g = svg.append("g")
+                .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+            var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(5);
+            var yLeft = d3.svg.axis().scale(yCross).orient("left").ticks(4);
+            var yRight = d3.svg.axis().scale(yKen).orient("right").ticks(4);
+
+            g.append("g")
+                .attr("class", "tradeoffAxis")
+                .attr("transform", "translate(0," + innerH + ")")
+                .call(xAxis);
+
+            g.append("g")
+                .attr("class", "tradeoffAxis")
+                .call(yLeft);
+
+            g.append("g")
+                .attr("class", "tradeoffAxis")
+                .attr("transform", "translate(" + innerW + ",0)")
+                .call(yRight);
+
+            var lineCross = d3.svg.line()
+                .x(function (d) { return x(d.w); })
+                .y(function (d) { return yCross(d.crossingsNorm); });
+
+            var lineKen = d3.svg.line()
+                .x(function (d) { return x(d.w); })
+                .y(function (d) { return yKen(d.kendallAvg); });
+
+            g.append("path")
+                .datum(paired)
+                .attr("class", "tradeoffLine")
+                .attr("stroke", "#333")
+                .attr("d", lineCross);
+
+            g.append("path")
+                .datum(paired)
+                .attr("class", "tradeoffLine")
+                .attr("stroke", "#1f77b4")
+                .attr("stroke-dasharray", "5,3")
+                .attr("d", lineKen);
+
+            var legend = g.append("g").attr("transform", "translate(0,-4)");
+            legend.append("line")
+                .attr("x1", 0).attr("x2", 16)
+                .attr("y1", 0).attr("y2", 0)
+                .attr("stroke", "#333")
+                .attr("stroke-width", 2);
+            legend.append("text")
+                .attr("x", 20).attr("y", 3)
+                .style("font-size", "10px")
+                .text("crossings (normalized)");
+
+            legend.append("line")
+                .attr("x1", 180).attr("x2", 196)
+                .attr("y1", 0).attr("y2", 0)
+                .attr("stroke", "#1f77b4")
+                .attr("stroke-width", 2)
+                .attr("stroke-dasharray", "5,3");
+            legend.append("text")
+                .attr("x", 200).attr("y", 3)
+                .style("font-size", "10px")
+                .text("kendall (between 2 datasets)");
+        }
+
+        function renderAllFromResults(results) {
+            var comparisonItems = [];
+            for (var i = 0; i < results.length; i++) {
+                var res = results[i];
+                if (res && !res.error && res.data) {
+                    comparisonItems.push({ name: res.info.name, data: res.data });
+                }
+            }
+
+            var compRows = computeCrossScaleComparisons(comparisonItems);
+            renderComparisonTable(compRows);
+
+            d3.select("#canvases").html("");
+            results.forEach(function (res, idx) {
+                var panel = d3.select("#canvases")
+                    .append("div")
+                    .attr("class", "panel")
+                    .attr("id", "panel-" + idx);
+
+                panel.append("h3").text(res.info.name);
+                var meta = panel.append("div").attr("class", "meta");
+
+                if (res.error) {
+                    meta.text("path: " + res.info.path);
+                    panel.append("div")
+                        .style("color", "crimson")
+                        .style("padding", "8px 0 12px 0")
+                        .text("Failed to load: " + res.info.path);
+                    return;
+                }
+
+                var svg = panel.append("svg")
+                    .attr("height", options.svg.height)
+                    .attr("width", options.svg.width);
+
+                var metrics = res.data && res.data.d3 ? res.data.d3.metrics : null;
+                var metaText = "path: " + res.info.path +
+                    " / interpolation: " + options.characters.interpolation +
+                    " / consistency: " + options.algorithm.consistencyWeight.toFixed(2);
+                if (metrics) {
+                    metaText += " / crossings: " + metrics.crossingsTotal +
+                        " (avg " + metrics.crossingsAvg.toFixed(2) + ")" +
+                        " / kendall(avg): " + metrics.kendallAvg.toFixed(3);
+                }
+                meta.text(metaText);
+                drawStoryFlow(res.data, res.options, svg, "p" + idx + "-");
+            });
+        }
+
+        function renderAllDatasets() {
+            if (options.algorithm.useOSQP && !osqpModule && typeof OSQPModule === "function") {
+                ensureOSQPReady(renderAllDatasets);
+                return;
+            }
+
+            var datasets = getDatasetListFromSelect();
+            var results = new Array(datasets.length);
+            var remaining = datasets.length;
+
+            if (remaining === 0) {
+                renderComparisonTable([]);
+                d3.select("#canvases").html("");
+                return;
+            }
+
+            datasets.forEach(function (dsInfo, idx) {
+                d3.json(dsInfo.path, function (error, json) {
+                    if (error) {
+                        console.error(error);
+                        results[idx] = { info: dsInfo, error: true };
+                    } else {
+                        console.log("LOADED:", dsInfo.path, "keys=", Object.keys(json));
+                        console.log("HAS locationTree?", !!json.locationTree, json.locationTree);
+
+                        var local = jQuery.extend(true, {}, json);
+                        var localOptions = jQuery.extend(true, {}, options);
+                        localOptions.characters.toKeep = null;
+
+                        if (localOptions.bundle && localOptions.bundle.enabled) {
+                            localOptions.algorithm.din = 0;
+                        }
+
+                        var annotated = annotateDataset(local, localOptions);
+                        results[idx] = { info: dsInfo, data: annotated, options: localOptions, error: false };
+                    }
+
+                    remaining--;
+                    if (remaining === 0) renderAllFromResults(results);
+                });
+            });
+        }
+
+        function drawStoryFlow(dataset, options, svg, idPrefix) {
+            idPrefix = idPrefix || "";
+
+            var characterColors = dataset.characters.length <= 10 ? d3.scale.category10() : d3.scale.category20();
+            var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
+
+            for (var i = 0; i < dataset.characters.length; ++i) {
+                dataset.characters[i].d3 = { color: characterColors(i) };
+            }
+
+            for (i = 0; i < dataset.locations.length; ++i) {
+                dataset.locations[i].d3 = { color: locationColors(i) };
+            }
+
+            var maxCharacters = dataset.d3.time
+                .map(function (time) { return (time.sortedCharacters ? time.sortedCharacters.length : 0); })
+                .reduce(function (x, y) { return Math.max(x, y); }, 0); // ← 初期値 0
+
+            if (!dataset.d3 || !dataset.d3.time || dataset.d3.time.length === 0) {
+                svg.append("text")
+                    .attr("x", 20).attr("y", 40)
+                    .style("font-size", "18px")
+                    .text("No frames to draw (dataset.d3.time is empty)");
+                return;
+            }
+
+            var axisPadding = 32;
+            var hasAnyQP = dataset.d3.time.some(function (tm) { return tm.d3 && tm.d3.y; });
+            var qpRange = null;
+
+            if (hasAnyQP) {
+                var minY = Infinity, maxY = -Infinity;
+
+                for (var t0 = 0; t0 < dataset.d3.time.length; t0++) {
+                    var tm = dataset.d3.time[t0];
+                    if (!tm.d3 || !tm.d3.y) continue;
+
+                    for (var k0 = 0; k0 < tm.sortedCharacters.length; k0++) {
+                        var cid0 = tm.sortedCharacters[k0];
+                        var y0 = tm.d3.y[cid0];
+                        if (y0 == null || !isFinite(y0)) continue;
+                        if (y0 < minY) minY = y0;
+                        if (y0 > maxY) maxY = y0;
+                    }
+                }
+
+                if (isFinite(minY) && isFinite(maxY)) {
+                    qpRange = { minY: minY, maxY: maxY, span: maxY - minY };
+                }
+            }
+
+            if (options.svg && options.svg.autoHeight) {
+                var rowHeight = (typeof options.svg.rowHeight === "number") ? options.svg.rowHeight
+                    : (options.algorithm && typeof options.algorithm.din === "number") ? options.algorithm.din : 24;
+                var baseHeight = options.svg.topPadding + axisPadding + rowHeight * Math.max(1, maxCharacters);
+                var targetHeight = baseHeight;
+
+                if (qpRange) {
+                    var qpHeight = options.svg.topPadding + axisPadding + qpRange.span;
+                    if (qpHeight > targetHeight) targetHeight = qpHeight;
+                }
+
+                var minHeight = (typeof options.svg.minHeight === "number") ? options.svg.minHeight : 0;
+                var maxHeight = (typeof options.svg.maxHeight === "number") ? options.svg.maxHeight : 0;
+
+                if (minHeight && targetHeight < minHeight) targetHeight = minHeight;
+                if (maxHeight && targetHeight > maxHeight) targetHeight = maxHeight;
+
+                options.svg.height = Math.ceil(targetHeight);
+                svg.attr("height", options.svg.height);
+            }
+            var axisY = options.svg.height - 16;
+            var plotHeight = axisY - options.svg.topPadding;
+
+            var verticalScale = d3.scale.linear()
+                .domain([0, maxCharacters])
+                .range([options.svg.topPadding, options.svg.height - axisPadding]);
+
+            var horizontalScale = d3.scale.linear()
+                .domain([0, dataset.d3.time.length])
+                .range([0, options.svg.width]);
+
+            var timeTicks = d3.range(0, dataset.d3.time.length + 1);
+            var timeAxis = d3.svg.axis()
+                .scale(horizontalScale)
+                .orient("bottom")
+                .tickValues(timeTicks)
+                .tickFormat(function (d) {
+                    return dataset.d3.timeStart + d;
+                });
+
+            var timeGrid = d3.svg.axis()
+                .scale(horizontalScale)
+                .orient("bottom")
+                .tickValues(timeTicks)
+                .tickSize(-plotHeight, 0)
+                .tickFormat("");
+
+            svg.selectAll(".timeAxis").remove();
+            svg.selectAll(".timeGrid").remove();
+            svg.append("g")
+                .attr("class", "axis timeGrid")
+                .attr("transform", "translate(0," + axisY + ")")
+                .call(timeGrid);
+            svg.append("g")
+                .attr("class", "axis timeAxis")
+                .attr("transform", "translate(0," + axisY + ")")
+                .call(timeAxis);
+
+            // =========================
+            // QP y -> screen y transform
+            // =========================
+            var yA = 1.0, yB = 0.0; // y_screen = yA*y_qp + yB
+
+            if (hasAnyQP && qpRange) {
+                var minY = qpRange.minY;
+                var maxY = qpRange.maxY;
+
+                if (isFinite(minY) && isFinite(maxY)) {
+                    var top = options.svg.topPadding;
+                    var bottom = options.svg.height - 10;
+                    var avail = bottom - top;
+                    var span = Math.max(1e-9, maxY - minY);
+
+                    // まずは距離感維持（a=1）で、上に持ち上げる
+                    yA = 1.0;
+
+                    // そのままだと下にはみ出すなら縮小
+                    if (span * yA > avail) {
+                        yA = avail / span;
+                    }
+
+                    // minY を top に合わせて平行移動
+                    yB = top - yA * minY;
+                }
+            }
+
+            dataset.characters.forEach(function (c) { if (c.d3) c.d3.points = []; });
+            dataset.locations.forEach(function (l) { if (l.d3) l.d3.points = []; });
+
+            for (var t = 0; t < dataset.d3.time.length; ++t) {
+                var time = dataset.d3.time[t];
+
+                // QP y があるならそれを使う
+                var hasQP = (time.d3 && time.d3.y);
+
+                // fallback: old behavior needs characterGroups/offset
+                if (!hasQP) {
+                    var characterGroups = time.locations
+                        .map(function (x) {
+                            return x.sessions.map(function (sId) {
+                                return dataset.sessions[sId].members.length;
+                            });
+                        })
+                        .reduce(function (x, y) { return x.concat(y); }, []);
+
+                    var offset = 0;
+
+                    characterGroups.forEach(function (charactersInSession) {
+                        var mean = 0;
+                        for (i = 0; i < charactersInSession; ++i) mean += verticalScale(offset + i);
+                        mean /= charactersInSession;
+
+                        for (i = 0; i < charactersInSession; ++i) {
+                            var cid = time.sortedCharacters[offset + i];
+                            var character = dataset.characters.filter(function (character) {
+                                return character.id == cid;
+                            })[0];
+
+                            if (character.isRemoved) continue;
+                            if (!character.d3) character.d3 = { color: characterColors(character.id) };
+                            if (character.d3.points === undefined) character.d3.points = [];
+
+                            character.d3.points.push({
+                                x: horizontalScale(t),
+                                y: mean + ((verticalScale(offset + i) - mean) / options.characters.sessionCoefficient)
+                            });
+                        }
+
+                        offset += charactersInSession;
+                    });
+
+                } else {
+                    // QP layout
+                    for (var k = 0; k < time.sortedCharacters.length; k++) {
+                        var cid2 = time.sortedCharacters[k];
+                        var character2 = dataset.characters.filter(function (character) {
+                            return character.id == cid2;
+                        })[0];
+
+                        if (!character2 || character2.isRemoved) continue;
+                        if (!character2.d3) character2.d3 = { color: characterColors(character2.id) };
+                        if (!character2.d3.points) character2.d3.points = [];
+
+                        character2.d3.points.push({
+                            x: horizontalScale(t),
+                            y: yA * time.d3.y[cid2] + yB  // ★これが最終y（QP結果）
+                        });
+                    }
+
+                }
+            }
+
+            for (t = 0; t < dataset.d3.time.length; ++t) {
+                time = dataset.d3.time[t];
+
+                for (i = 0; i < time.locations.length; ++i) {
+                    var sessions = time.locations[i].sessions;
+
+                    for (var k = 0; k < sessions.length; ++k) {
+                        var session = dataset.sessions[sessions[k]];
+                        var location = dataset.locations[session.location];
+
+                        for (var h = 0; h < session.members.length; ++h) {
+                            var character2 = dataset.characters.filter(function (character) {
+                                return character.id == session.members[h];
+                            })[0];
+
+                            if (location.d3.points == undefined) location.d3.points = [];
+
+                            character2.d3.points.forEach(function (characterPoint) {
+                                if (characterPoint.x != horizontalScale(t)) return;
+
+                                if (location.d3.points.length == 0) {
+                                    location.d3.points.push({ top: characterPoint, bottom: characterPoint });
+                                } else {
+                                    var lastPoint = location.d3.points[location.d3.points.length - 1];
+
+                                    if (lastPoint.top.x == characterPoint.x) {
+                                        if (lastPoint.top.y > characterPoint.y) {
+                                            location.d3.points[location.d3.points.length - 1].top = characterPoint;
+                                        } else if (lastPoint.bottom.y < characterPoint.y) {
+                                            location.d3.points[location.d3.points.length - 1].bottom = characterPoint;
+                                        }
+                                    } else {
+                                        location.d3.points.push({ top: characterPoint, bottom: characterPoint });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            dataset.locations = dataset.locations.filter(function (location) {
+                return location.d3.points != undefined;
+            });
+
+            for (i = 0; i < dataset.locations.length; ++i) {
+                var loc = dataset.locations[i];
+                if (loc.baseId === undefined || loc.baseId === null) loc.baseId = loc.id;
+
+                for (k = 1; k < loc.d3.points.length; ++k) {
+                    if (loc.d3.points[k].top.x - loc.d3.points[k - 1].top.x > options.locations.splitLength) {
+                        var newLocation = jQuery.extend(true, {}, loc);
+                        newLocation.d3.points = newLocation.d3.points.slice(k);
+                        newLocation.id = dataset.locations.length;
+                        newLocation.baseId = loc.baseId;
+                        loc.d3.points = loc.d3.points.slice(0, k);
+                        dataset.locations.push(newLocation);
+                        break;
+                    }
+                }
+            }
+
+            dataset.d3.charactersHighlighted = 0;
+
+            function toggleCharacterHighlight(character) {
+                if (dataset.d3.charactersHighlighted == 0)
+                    svg.selectAll("." + options.characters.class)
+                        .transition()
+                        .duration(options.characters.highlightDuration)
+                        .style('opacity', options.characters.nonHighlightedOpacity)
+                        .style('stroke-width', options.characters.strokeWidth);
+
+                character.d3.isHighlighted = !character.d3.isHighlighted;
+                dataset.d3.charactersHighlighted += character.d3.isHighlighted ? 1 : -1;
+
+                if (dataset.d3.charactersHighlighted == 0)
+                    svg.selectAll("." + options.characters.class)
+                        .transition()
+                        .duration(options.characters.highlightDuration)
+                        .style('opacity', 1.0)
+                        .style('stroke-width', options.characters.strokeWidth);
+            }
+
+            svg.on("click", function () {
+                dataset.characters.forEach(function (character) {
+                    if (!character.isRemoved && character.d3 && character.d3.isHighlighted) {
+                        toggleCharacterHighlight(character);
+                    }
+                });
+            });
+
+            dataset.characters.forEach(function (character) {
+                if (character.isRemoved) character.d3.points = [];
+            });
+
+            var locationArea = d3.svg.area().interpolate(options.locations.interpolation)
+                .x(function (d) { return d.top.x; })
+                .y0(function (d) { return d.bottom.y + options.locations.padding; })
+                .y1(function (d) { return d.top.y - options.locations.padding; });
+
+            // ---- Hierarchical background bands (locGroup) ----
+            if (options.locations.hierarchy && options.locations.hierarchy.enabled && dataset.d3 && dataset.d3.time) {
+                function makeNodeKey(node, parentKey) {
+                    var self = (typeof node.id === "number") ? ("id:" + node.id) : ("name:" + (node.name || node.type || "node"));
+                    return parentKey ? (parentKey + "/" + self) : self;
+                }
+
+                function buildHierarchyBands(ds) {
+                    var bandState = {};
+                    var timeStart = (ds.d3 && typeof ds.d3.timeStart === "number") ? ds.d3.timeStart : 0;
+                    var sessionDepthTarget = null;
+
+                    if (ds && ds.locationTree && ds.sessions) {
+                        var depthById = {};
+                        (function indexDepth(node, depth) {
+                            if (!node) return;
+                            if (typeof node.id === "number") depthById[node.id] = depth;
+                            var kids = node.children || [];
+                            for (var i = 0; i < kids.length; i++) {
+                                indexDepth(kids[i], depth + 1);
+                            }
+                        })(ds.locationTree, -1);
+
+                        var depthCounts = {};
+                        for (var sIdx = 0; sIdx < ds.sessions.length; sIdx++) {
+                            var sess = ds.sessions[sIdx];
+                            var d = depthById[sess.location];
+                            if (d === undefined) continue;
+                            depthCounts[d] = (depthCounts[d] || 0) + 1;
+                        }
+
+                        var bestDepth = null;
+                        var bestCount = -1;
+                        for (var key in depthCounts) {
+                            if (!depthCounts.hasOwnProperty(key)) continue;
+                            var count = depthCounts[key];
+                            var depth = parseInt(key, 10);
+                            if (bestDepth === null || count > bestCount || (count === bestCount && depth < bestDepth)) {
+                                bestDepth = depth;
+                                bestCount = count;
+                            }
+                        }
+                        sessionDepthTarget = bestDepth;
+                    }
+
+                    function getState(key, depth, topKey, nodeType) {
+                        if (!bandState[key]) {
+                            bandState[key] = { key: key, depth: depth, topKey: topKey, nodeType: nodeType, segments: [], current: null };
+                        }
+                        return bandState[key];
+                    }
+
+                    function hasSessionChild(node) {
+                        if (!node || !node.children) return false;
+                        for (var i = 0; i < node.children.length; i++) {
+                            if (node.children[i] && node.children[i].type === "session") return true;
+                        }
+                        return false;
+                    }
+
+                    function collectBounds(node, parentKey, depth, topKey, bounds, moment) {
+                        if (!node) return { min: Infinity, max: -Infinity, count: 0 };
+
+                        var key = makeNodeKey(node, parentKey);
+                        var nextTopKey = topKey;
+                        if (node.type === "root") {
+                            nextTopKey = null;
+                        } else if (!topKey) {
+                            nextTopKey = key;
+                        }
+
+                        var minY = Infinity, maxY = -Infinity, cnt = 0;
+
+                        if (node.type === "entity") {
+                            var y = moment.d3.y[node.id];
+                            if (y != null && isFinite(y)) {
+                                var ys = yA * y + yB;
+                                minY = Math.min(minY, ys);
+                                maxY = Math.max(maxY, ys);
+                                cnt++;
+                            }
+                        }
+
+                        var children = node.children || [];
+                        for (var i = 0; i < children.length; i++) {
+                            var res = collectBounds(children[i], key, depth + 1, nextTopKey, bounds, moment);
+                            if (res.count > 0) {
+                                minY = Math.min(minY, res.min);
+                                maxY = Math.max(maxY, res.max);
+                                cnt += res.count;
+                            }
+                        }
+
+                        var directSession = hasSessionChild(node);
+                        if (node.type === "location" && cnt > 0 && directSession &&
+                            (sessionDepthTarget === null || depth === sessionDepthTarget)) {
+                            bounds[key] = { min: minY, max: maxY, depth: depth, topKey: nextTopKey, nodeType: node.type };
+                        }
+
+                        return { min: minY, max: maxY, count: cnt };
+                    }
+
+                    for (var t = 0; t < ds.d3.time.length; t++) {
+                        var moment = ds.d3.time[t];
+                        if (!moment || !moment.relationshipRoot || !moment.d3 || !moment.d3.y) {
+                            continue;
+                        }
+
+                        var bounds = {};
+                        collectBounds(moment.relationshipRoot, "", -1, null, bounds, moment);
+
+                        var seen = {};
+                        for (var key in bounds) {
+                            if (!bounds.hasOwnProperty(key)) continue;
+                            var b = bounds[key];
+                            var st = getState(key, b.depth, b.topKey, b.nodeType);
+                            var pad = options.locations.hierarchy.padding +
+                                options.locations.hierarchy.paddingStep * Math.max(0, b.depth);
+
+                            if (!st.current) {
+                                st.current = { key: key + "-" + st.segments.length, baseKey: key, depth: st.depth, topKey: st.topKey, points: [] };
+                                st.segments.push(st.current);
+                            }
+
+                            st.current.points.push({
+                                x: horizontalScale(t),
+                                top: b.min - pad,
+                                bottom: b.max + pad
+                            });
+                            seen[key] = true;
+                        }
+
+                        for (var k in bandState) {
+                            if (!bandState.hasOwnProperty(k)) continue;
+                            if (!seen[k] && bandState[k].current) {
+                                bandState[k].current = null;
+                            }
+                        }
+                    }
+
+                    var palette = [
+                        "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+                        "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+                        "#393b79", "#637939", "#8c6d31", "#843c39", "#7b4173",
+                        "#3182bd", "#e6550d", "#31a354", "#756bb1", "#636363"
+                    ];
+                    function bandColor(key) {
+                        var idx = 0;
+                        for (var i = 0; i < key.length; i++) idx = (idx * 31 + key.charCodeAt(i)) % palette.length;
+                        return palette[idx];
+                    }
+                    var out = [];
+                    for (var k2 in bandState) {
+                        if (!bandState.hasOwnProperty(k2)) continue;
+                        var segs = bandState[k2].segments;
+                        for (var s = 0; s < segs.length; s++) {
+                            if (!segs[s].points || segs[s].points.length < 2) continue;
+                            segs[s].isTop = false;
+                            var base = bandColor(segs[s].baseKey);
+                            var hsl = d3.hsl(base);
+                            hsl.l = Math.min(0.65, hsl.l);
+                            hsl.s = Math.max(0.65, hsl.s);
+                            segs[s].color = hsl.toString();
+                            out.push(segs[s]);
+                        }
+                    }
+
+                    return out;
+                }
+
+                var hierarchyArea = d3.svg.area().interpolate(options.locations.interpolation)
+                    .x(function (d) { return d.x; })
+                    .y0(function (d) { return d.bottom; })
+                    .y1(function (d) { return d.top; });
+
+                var hierarchyBands = buildHierarchyBands(dataset);
+                var hSel = svg.selectAll(".hierarchyBand").data(hierarchyBands, function (d) { return d.key; });
+                hSel.enter().append("path").attr("class", "hierarchyBand");
+                hSel
+                    .attr("d", function (d) { return hierarchyArea(d.points); })
+                    .attr("fill", function (d) { return d.color; })
+                    .attr("opacity", options.locations.hierarchy.opacity)
+                    .attr("stroke", function (d) { return d.isTop ? "#333" : "none"; })
+                    .attr("stroke-width", function (d) { return d.isTop ? 1.5 : 0; });
+                hSel.exit().remove();
+            } else {
+                svg.selectAll(".hierarchyBand").remove();
+            }
+            // ---- /Hierarchical background bands ----
+
+            function setLocationAttributes(locations) {
+                return locations
+                    .attr("id", function (d) { return idPrefix + options.locations.class + d.id; })
+                    .attr("class", options.locations.class)
+                    .attr("d", function (d) { return locationArea(d.d3.points); })
+                    .attr("fill", function (d) { return d.d3.color; })
+                    .attr("opacity", options.locations.opacity);
+            }
+
+            var locations = svg.selectAll("." + options.locations.class).data(dataset.locations);
+            setLocationAttributes(locations.transition().duration(options.animation.transitionDuration));
+            setLocationAttributes(locations.enter().append("path"));
+            locations.exit().remove();
+
+            function setLocationNamesAttributes(locationNames) {
+                return locationNames
+                    .attr("class", options.locations.labelClass)
+                    .attr("x", options.locations.labelX)
+                    .attr("y", function (d) {
+                        if (!d || !d.d3 || !d.d3.points || d.d3.points.length === 0) return options.locations.labelDy;
+                        return d.d3.points[0].top.y - options.locations.padding + options.locations.labelDy;
+                    })
+                    .text(function (d) { return d.name; });
+            }
+
+            function pickLabelLocations(locations) {
+                var byBase = {};
+                locations.forEach(function (loc) {
+                    if (!loc || !loc.d3 || !loc.d3.points || loc.d3.points.length === 0) return;
+                    var base = (loc.baseId !== undefined && loc.baseId !== null) ? loc.baseId : loc.id;
+                    var firstX = loc.d3.points[0].top.x;
+                    if (!byBase[base] || firstX < byBase[base].firstX) {
+                        byBase[base] = { loc: loc, firstX: firstX };
+                    }
+                });
+                return Object.keys(byBase).map(function (k) { return byBase[k].loc; });
+            }
+
+            var labelLocations = pickLabelLocations(dataset.locations);
+            var locationNames = svg.selectAll("." + options.locations.labelClass)
+                .data(labelLocations, function (d) { return (d.baseId !== undefined && d.baseId !== null) ? d.baseId : d.id; });
+            setLocationNamesAttributes(locationNames.transition().duration(options.animation.transitionDuration));
+            setLocationNamesAttributes(
+                locationNames.enter()
+                    .append("text")
+                    .style("font-size", options.locations.fontSize)
+            );
+            locationNames.exit().remove();
+
+            // ---- LOD bundling: session bands (din = 0, thickness ~ members) ----
+            if (options.bundle && options.bundle.enabled) {
+                function blendColorForMembers(members) {
+                    var r = 0, g = 0, b = 0, cnt = 0;
+                    members.forEach(function (cid) {
+                        var ch = dataset.characters.filter(function (c) { return c.id == cid; })[0];
+                        if (!ch || !ch.d3 || !ch.d3.color) return;
+                        var rgb = d3.rgb(ch.d3.color);
+                        r += rgb.r; g += rgb.g; b += rgb.b; cnt++;
+                    });
+                    if (cnt === 0) return "#999";
+                    return d3.rgb(r / cnt, g / cnt, b / cnt).toString();
+                }
+
+                function buildSessionBands(ds) {
+                    var bands = [];
+                    var timeStart = (ds.d3 && typeof ds.d3.timeStart === "number") ? ds.d3.timeStart : 0;
+
+                    for (var sid = 0; sid < ds.sessions.length; sid++) {
+                        var sess = ds.sessions[sid];
+                        var members = sess.members || [];
+                        var color = blendColorForMembers(members);
+                        var seg = [];
+                        var segIndex = 0;
+
+                        for (var t = 0; t < ds.d3.time.length; t++) {
+                            var actual = timeStart + t;
+                            if (!(sess.start <= actual && actual < sess.end)) {
+                                if (seg.length > 0) {
+                                    bands.push({ key: "s" + sid + "-" + segIndex, sid: sid, color: color, points: seg });
+                                    seg = [];
+                                    segIndex++;
+                                }
+                                continue;
+                            }
+
+                            var moment = ds.d3.time[t];
+                            if (!moment || !moment.d3 || !moment.d3.y) continue;
+
+                            var ys = [];
+                            for (var mi = 0; mi < members.length; mi++) {
+                                var y = moment.d3.y[members[mi]];
+                                if (y == null || !isFinite(y)) continue;
+                                ys.push(yA * y + yB);
+                            }
+                            if (ys.length === 0) continue;
+
+                            var center = d3.mean(ys);
+                            var half = Math.max(1, (members.length * options.bundle.lineWidth) / 2);
+
+                            seg.push({
+                                x: horizontalScale(t),
+                                top: center - half,
+                                bottom: center + half
+                            });
+                        }
+
+                        if (seg.length > 0) {
+                            bands.push({ key: "s" + sid + "-" + segIndex, sid: sid, color: color, points: seg });
+                        }
+                    }
+                    return bands;
+                }
+
+                var bandArea = d3.svg.area().interpolate(options.characters.interpolation)
+                    .x(function (d) { return d.x; })
+                    .y0(function (d) { return d.bottom; })
+                    .y1(function (d) { return d.top; });
+
+                var bands = buildSessionBands(dataset);
+                var bandSel = svg.selectAll(".sessionBand").data(bands, function (d) { return d.key; });
+
+                bandSel.enter().append("path").attr("class", "sessionBand");
+                bandSel
+                    .attr("d", function (d) { return bandArea(d.points); })
+                    .attr("fill", function (d) { return d.color; })
+                    .attr("opacity", options.bundle.opacity);
+
+                bandSel.exit().remove();
+            } else {
+                svg.selectAll(".sessionBand").remove();
+            }
+
+            var line_function = d3.svg.line().interpolate(options.characters.interpolation)
+                .x(function (d) { return d.x; })
+                .y(function (d) { return d.y; });
+
+            function setCharacterLinesAttributes(lines) {
+                return lines
+                    .attr("class", options.characters.class)
+                    .attr("id", function (d) { return idPrefix + options.characters.class + d.id; })
+                    .attr("xlink:href", function (d) { return options.characters.class + d.id; })
+                    .attr("d", function (d) { return line_function(d.d3.points); })
+                    .attr("fill", "none")
+                    .attr("stroke", function (d) { return d.d3.color; })
+                    .attr("stroke-width", options.characters.strokeWidth)
+                    .style('opacity', 1.0);
+            }
+
+            if (!(options.bundle && options.bundle.enabled)) {
+                var lines = svg.selectAll("." + options.characters.class).data(dataset.characters);
+                setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
+                setCharacterLinesAttributes(lines.enter().append("path"))
+                    .on("click", function (d) {
+
+                        toggleCharacterHighlight(d);
+
+                        d3.select(this)
+                            .transition()
+                            .duration(options.characters.highlightDuration)
+                            .style('opacity', dataset.d3.charactersHighlighted == 0 || d.d3.isHighlighted ? 1.0 : options.characters.nonHighlightedOpacity)
+                            .style('stroke-width', d.d3.isHighlighted ? options.characters.highlightStrokeWidth : options.characters.strokeWidth);
+
+                        d3.event.stopPropagation();
+                    });
+                lines.exit().remove();
+            } else {
+                svg.selectAll("." + options.characters.class).remove();
+            }
+
+            function setCharacterNamesAttributes(names) {
+                return names
+                    .attr("class", options.characters.labelClass)
+                    .attr("xlink:href", function (d) { return "#" + idPrefix + options.characters.class + d.id; })
+                    .text(function (d) { return d.name; });
+            }
+
+            if (!(options.bundle && options.bundle.enabled)) {
+                var names = svg.selectAll("." + options.characters.labelClass).data(dataset.characters);
+                setCharacterNamesAttributes(names.transition().duration(options.animation.transitionDuration));
+                setCharacterNamesAttributes(
+                    names.enter()
+                        .append("text")
+                        .attr("x", options.characters.labelX)
+                        .attr("dy", options.characters.labelDy)
+                        .append("textPath")
+                );
+                names.exit().remove();
+            } else {
+                svg.selectAll("." + options.characters.labelClass).remove();
+            }
+        }
+
+        // ルートカテゴリ（locationTreeの root直下）の色を固定
+        var ROOT_COLOR = {
+            "関東": "#2ca02c",   // 緑
+            "関西": "#ff7f0e",   // オレンジ
+            "北海道": "#1f77b4"  // 青
+        };
+
+        // locations配列から id -> name を引く（あなたのデータ形式用）
+        function locName(dataset, locId) {
+            // dataset.locations は {id, name} の配列なので、idが添字とは限らない前提で探す
+            // ※あなたの例だと id=0..13 なので添字= id だけど、安全側にする
+            for (var i = 0; i < dataset.locations.length; i++) {
+                if (dataset.locations[i].id === locId) return dataset.locations[i].name;
+            }
+            return null;
+        }
+
+        // locationTreeを走査して、locationId -> {rootName, depth} を作る
+        function indexLocationTree(dataset) {
+            var rootNode = dataset.locationTree;
+            var map = {}; // locId -> { rootName, depth }
+
+            function dfs(node, rootName, depth) {
+                if (node.id != null && node.id !== "root") {
+                    map[node.id] = { rootName: rootName, depth: depth };
+                }
+                if (!node.children) return;
+                for (var i = 0; i < node.children.length; i++) {
+                    dfs(node.children[i], rootName, depth + 1);
+                }
+            }
+
+            // root直下の子を「最上位カテゴリ」として扱う
+            for (var i = 0; i < rootNode.children.length; i++) {
+                var top = rootNode.children[i];
+                var topName = locName(dataset, top.id); // ★ここが重要（treeにnameが無いのでlocationsから引く）
+                dfs(top, topName, 0);
+            }
+
+            return map;
+        }
+
+        // root色 + depthで派生色（同系統）を作る
+        function makeLocationColorFn(dataset) {
+            var infoByLocId = indexLocationTree(dataset);
+
+            return function (locId) {
+                var info = infoByLocId[locId];
+                if (!info || !info.rootName) return "#999"; // 木に無い/名前取れないとき
+
+                var base = ROOT_COLOR[info.rootName] || "#999";
+                var hsl = d3.hsl(base);
+
+                // depthが深いほど少し薄くする（調整OK）
+                var depth = info.depth || 0;
+                var l = Math.min(0.88, hsl.l + 0.12 * depth);
+                var s = Math.max(0.35, hsl.s - 0.10 * depth);
+
+                return d3.hsl(hsl.h, s, l).toString();
+            };
+        }
+
+        // annotateDataset はあなたの貼ったまま（省略せず残してOK）
+        function annotateDataset(dataset, options) {
+            var timeframe = dataset.sessions.map(function (x) {
+                return { start: x.start, end: x.end }
+            }).reduce(function (x, y) {
+                return { start: Math.min(x.start, y.start), end: Math.max(x.end, y.end) }
+            });
+
+            console.log("[annotate] sessions=", dataset.sessions ? dataset.sessions.length : "NONE");
+            console.log("[annotate] timeframe=", timeframe.start, timeframe.end);
+            console.log("[annotate] locations=", dataset.locations ? dataset.locations.length : "NONE");
+
+            console.log("[annotate] sessions[0] =", JSON.stringify(dataset.sessions[0]));
+            console.log("[annotate] sessions start/end types:",
+                dataset.sessions.map(function (s) { return [typeof s.start, typeof s.end, s.start, s.end].join(" "); }).slice(0, 5)
+            );
+
+            // time=0 と time=1 で active が何個になるか
+            function activeCountAt(t) {
+                var cnt = 0;
+                for (var i = 0; i < dataset.sessions.length; i++) {
+                    var s = dataset.sessions[i];
+                    if (s.start <= t && t < s.end) cnt++;
+                }
+                return cnt;
+            }
+            console.log("[annotate] active@0=", activeCountAt(0), "active@1=", activeCountAt(1), "active@10=", activeCountAt(10));
+
+            if (!dataset.sessions || dataset.sessions.length === 0) {
+                throw new Error("dataset.sessions is empty");
+            }
+
+            var bad = [];
+            for (var i = 0; i < dataset.sessions.length; i++) {
+                var s = dataset.sessions[i];
+                if (typeof s.start !== "number" || typeof s.end !== "number") bad.push(["non-number", i, s.start, s.end]);
+                if (!(s.start < s.end)) bad.push(["start>=end", i, s.start, s.end]);
+                if (typeof s.location !== "number") bad.push(["non-number location", i, s.location]);
+            }
+            if (bad.length) {
+                console.log("BAD sessions:", bad.slice(0, 20));
+                throw new Error("Found invalid sessions. See console BAD sessions.");
+            }
+
+            // -----------------------------
+            // Relationship Tree utilities  (5.1)
+            // -----------------------------
+
+            function deepClone(obj) {
+                return jQuery.extend(true, {}, obj);
+            }
+
+            function buildLocationPathMap(root) {
+                var map = {};
+
+                function dfs(node, path) {
+                    if (!node) return;
+                    if (typeof node.id === "number") map[node.id] = path.slice();
+                    var kids = node.children || [];
+                    for (var i = 0; i < kids.length; i++) {
+                        dfs(kids[i], path.concat([i]));
+                    }
+                }
+
+                dfs(root, []);
+                return map;
+            }
+
+            var locationPathMap = dataset.locationTree ? buildLocationPathMap(dataset.locationTree) : null;
+
+            // locationTree の各ノードに parent を付け、id→node の辞書を作る
+            function indexLocationTree(root) {
+                var byId = {};
+
+                function dfs(node, parent) {
+                    // id が数値（location id）であれば登録
+                    if (node.id !== undefined && node.id !== null && node.id !== "root") {
+                        byId[node.id] = node;
+                    }
+                    if (!node.children) node.children = [];
+                    node.children.forEach(function (ch) { dfs(ch, node); });
+                }
+
+                dfs(root, null);
+                return byId;
+            }
+
+            // tree のうち「アクティブな location だけ」残しつつ、空 branch を刈る
+            function pruneInactiveLocations(root, activeLocationIdSet) {
+                function recur(node) {
+                    if (!node.children) node.children = [];
+                    var kept = [];
+
+                    node.children.forEach(function (ch) {
+                        // 子を先に処理
+                        var keptChild = recur(ch);
+
+                        // location ノード（id を持つ想定）
+                        var isLocation = (ch.id !== undefined && ch.id !== null && ch.id !== "root");
+                        var isActive = isLocation ? !!activeLocationIdSet[ch.id] : true; // root は常に true
+
+                        // ルール：
+                        // - location ノードなら active のものだけ残す
+                        // - ただし active でなくても active な子孫がいるなら残す（中間ノード用）
+                        if (isLocation) {
+                            if (isActive || (keptChild && keptChild.children && keptChild.children.length > 0)) {
+                                kept.push(keptChild);
+                            }
+                        } else {
+                            // root 等の非 location ノードは残す
+                            kept.push(keptChild);
+                        }
+                    });
+
+                    node.children = kept;
+                    return node;
+                }
+
+                return recur(root);
+            }
+
+            // relationship tree を作る：
+            // root/locationTree をコピー → active location だけ残す → 各location に session/entity をぶら下げる
+            function buildRelationshipTreeAtTime(dataset, time) {
+                if (!dataset.locationTree) {
+                    throw new Error("dataset.locationTree is missing. Please add it at the top level of the JSON.");
+                }
+
+                // 1) locationTree を複製して index 化
+                var root = deepClone(dataset.locationTree);
+                var locNodeById = indexLocationTree(root);
+
+                // 2) この時刻にアクティブな session を集め、active location を求める
+                var activeLocation = {}; // id -> true
+                var sessionsByLoc = {};  // locId -> [sessionIndex...]
+
+                for (var i = 0; i < dataset.sessions.length; ++i) {
+                    var s = dataset.sessions[i];
+                    if (s.start <= time && time < s.end) {
+                        activeLocation[s.location] = true;
+                        if (!sessionsByLoc[s.location]) sessionsByLoc[s.location] = [];
+                        sessionsByLoc[s.location].push(i);
+                    }
+                }
+
+                // 3) アクティブでない location を tree から刈る
+                root = pruneInactiveLocations(root, activeLocation);
+
+                // 4) 各 location ノードに session ノードを追加し、その下に entity ノードを追加
+                // ※ entity ノードは {type:"entity", id:<charId>} を入れる（order/weight は ordering で使う）
+                // ※ session ノードは {type:"session", sid:<sessionIndex>, members:[...]} を入れる
+                function attachSessions(node) {
+                    if (!node.children) node.children = [];
+
+                    // ★修正：idがあっても entity/session は location ではない
+                    var isLocation =
+                        (typeof node.id === "number") &&   // ←これが重要
+                        (node.type !== "entity") &&
+                        (node.type !== "session");
+
+                    if (isLocation) {
+                        var locId = node.id;
+
+                        // location ノードだと明示
+                        node.type = "location";
+
+                        var sList = sessionsByLoc[locId] || [];
+
+                        // 既に session を付けた後に再度 attach しない保険（念のため）
+                        // （buildRelationshipTreeAtTime で毎回cloneしてるなら本来不要だが安全）
+                        // locationTree由来の子（sub-location）だけ先に処理したい場合はここを工夫
+                        sList.forEach(function (sid) {
+                            var sess = dataset.sessions[sid];
+                            var sNode = {
+                                type: "session",
+                                sid: sid,
+                                start: sess.start,
+                                end: sess.end,
+                                location: sess.location,
+                                children: sess.members.map(function (cid) {
+                                    return { type: "entity", id: cid, children: [] };
+                                })
+                            };
+                            node.children.push(sNode);
+                        });
+                    } else {
+                        // locationTree由来の中間ノード（地域など）は locGroup として固定対象にする
+                        if (node.id === "root") node.type = "root";
+                        else if (!node.type) node.type = "locGroup"; // ★ここが重要
+                    }
+
+                    node.children.forEach(function (ch) { attachSessions(ch); });
+                }
+
+                attachSessions(root);
+
+                // 5) 便利のため、root と locNodeById を返す（ordering 実装で使う）
+                return { root: root, locNodeById: locNodeById };
+            }
+
+            // -----------------------------
+            // Tree-based bottom-up sorting (5.2 part-2): sessions/entities under fixed locations
+            // -----------------------------
+
+            // referenceSortedCharacters: [charId, charId, ...] 参照フレームの上下順
+            function buildRefRank(referenceSortedCharacters) {
+                var rank = {};
+                for (var i = 0; i < referenceSortedCharacters.length; ++i) {
+                    rank[referenceSortedCharacters[i]] = i + 1; // 1..n
+                }
+                return rank;
+            }
+
+            function buildBaseRank(baseOrder) {
+                var rank = {};
+                if (!baseOrder) return rank;
+                for (var i = 0; i < baseOrder.length; ++i) {
+                    rank[baseOrder[i]] = i + 1;
+                }
+                return rank;
+            }
+
+            // node.weight を bottom-up で計算
+            // entity: ref rank (無ければ大きい値)
+            // session: children平均
+            // location/root: children平均（※location自体は固定順なので、重みは主に親側集約用）
+            function computeWeightsBottomUp(node, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options) {
+                if (!node) return fallbackWeight;
+
+                function blendRank(refVal, baseVal) {
+                    if (refVal === undefined && baseVal === undefined) return fallbackWeight;
+                    if (refVal === undefined) return baseVal;
+                    if (baseVal === undefined) return refVal;
+                    var w = (typeof consistencyWeight === "number") ? consistencyWeight : 0.0;
+                    return (1.0 - w) * refVal + w * baseVal;
+                }
+
+                if (node.type === "entity") {
+                    // 参照にあればそれを使う
+                    if (refRank[node.id] !== undefined || baseRank[node.id] !== undefined) {
+                        node.weight = blendRank(refRank[node.id], baseRank[node.id]);
+                        return node.weight;
+                    }
+
+                    // 参照にない entity の扱い（不足⑦）
+                    if (options.algorithm && options.algorithm.missingEntityPolicy === "hold") {
+                        // 前回の重み（無ければ fallback）
+                        node.weight = (prevWeightByChar && prevWeightByChar[node.id] !== undefined)
+                            ? prevWeightByChar[node.id]
+                            : fallbackWeight;
+                        return node.weight;
+                    }
+
+                    // bottom: 常に最下段へ
+                    var penalty = (options.algorithm && options.algorithm.missingEntityPenalty !== undefined)
+                        ? options.algorithm.missingEntityPenalty
+                        : 100000;
+                    node.weight = penalty;
+                    return node.weight;
+                }
+
+                var children = node.children || [];
+                if (children.length === 0) {
+                    node.weight = fallbackWeight;
+                    return node.weight;
+                }
+
+                var sum = 0;
+                var cnt = 0;
+                for (var i = 0; i < children.length; ++i) {
+                    sum += computeWeightsBottomUp(children[i], refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
+                    cnt++;
+                }
+
+                // session weight = average(entity weights)（論文通り）
+                node.weight = (cnt > 0) ? (sum / cnt) : fallbackWeight;
+                return node.weight;
+            }
+
+            // node の子のうち「動かしていいノード」だけを barycenter(=weight) で安定ソート
+            function barycenterSortChildren(node) {
+                if (!node || !node.children || node.children.length <= 1) return;
+
+                // locationTree ノード(root/locGroup)は子の locTree 部分を固定しているので、ここでは触らない
+                if (node.type === "root" || node.type === "locGroup") {
+                    // ただし、root/locGroup の下に session/entity が混ざってたらそれは設計ミスなので触らない
+                    return;
+                }
+
+                // location: locTree 子は固定、session だけ動かす（あなたの sortNonLocationNodesBottomUp と同じ方針）
+                if (node.type === "location") {
+                    var locKids = [];
+                    var sessKids = [];
+                    var rest = [];
+
+                    node.children.forEach(function (ch) {
+                        if (!ch) return;
+                        if (ch.type === "locGroup" || ch.type === "location") locKids.push(ch);
+                        else if (ch.type === "session") sessKids.push(ch);
+                        else rest.push(ch);
+                    });
+
+                    sessKids.sort(function (a, b) {
+                        var wa = (a.weight !== undefined) ? a.weight : 1e18;
+                        var wb = (b.weight !== undefined) ? b.weight : 1e18;
+                        if (wa !== wb) return wa - wb;
+                        return (a.sid || 0) - (b.sid || 0);
+                    });
+
+                    node.children = locKids.concat(sessKids).concat(rest);
+                    return;
+                }
+
+                // session: entity のみ動かす（weight=barycenter）
+                if (node.type === "session") {
+                    node.children.sort(function (a, b) {
+                        var wa = (a.weight !== undefined) ? a.weight : 1e18;
+                        var wb = (b.weight !== undefined) ? b.weight : 1e18;
+                        if (wa !== wb) return wa - wb;
+                        return (a.id || 0) - (b.id || 0);
+                    });
+                    return;
+                }
+            }
+
+            // relationship tree を下から上へ走査し、各レベルで barycenter ソート（論文 Fig.5 の “level-by-level”）
+            function barycenterSortBottomUp(node) {
+                if (!node || !node.children) return;
+                node.children.forEach(barycenterSortBottomUp);
+                barycenterSortChildren(node);
+            }
+
+
+            // -----------------------------
+            // Sort non-location-tree nodes only (sessions/entities)
+            // -----------------------------
+            function sortNonLocationNodesBottomUp(node) {
+                if (!node || !node.children) return;
+
+                // 先に子を処理
+                node.children.forEach(function (ch) { sortNonLocationNodesBottomUp(ch); });
+
+                // locationTreeノードは並べ替え禁止（固定）
+                if (node.type === "root" || node.type === "locGroup") {
+                    return; // ★ここ重要：地域ノードを動かさない
+                }
+
+                // location: sub-locationは固定、sessionだけソート
+                if (node.type === "location") {
+                    var locKids = [];
+                    var sessKids = [];
+                    var rest = [];
+
+                    node.children.forEach(function (ch) {
+                        if (!ch) return;
+                        if (ch.type === "locGroup" || ch.type === "location") locKids.push(ch);     // 固定
+                        else if (ch.type === "session") sessKids.push(ch);                          // ソート対象
+                        else rest.push(ch);
+                    });
+
+                    sessKids.sort(function (a, b) {
+                        var wa = (a.weight !== undefined) ? a.weight : 1e18;
+                        var wb = (b.weight !== undefined) ? b.weight : 1e18;
+                        if (wa !== wb) return wa - wb;
+                        return (a.sid || 0) - (b.sid || 0);
+                    });
+
+                    node.children = locKids.concat(sessKids).concat(rest);
+                    return;
+                }
+
+                // session: entityだけソート
+                if (node.type === "session") {
+                    node.children.sort(function (a, b) {
+                        var wa = (a.weight !== undefined) ? a.weight : 1e18;
+                        var wb = (b.weight !== undefined) ? b.weight : 1e18;
+                        if (wa !== wb) return wa - wb;
+                        return (a.id || 0) - (b.id || 0);
+                    });
+                    return;
+                }
+
+                // それ以外（entity等）は何もしない
+            }
+
+            // tree を上から辿って entity id を集める（最終的な縦順）
+            function collectEntitiesInOrder(node, out) {
+                if (!node) return;
+                if (node.type === "entity") {
+                    out.push(node.id);
+                    return;
+                }
+                if (!node.children) return;
+                for (var i = 0; i < node.children.length; ++i) {
+                    collectEntitiesInOrder(node.children[i], out);
+                }
+            }
+
+            // relationship tree から「描画用 moment.locations」を再構築する（階層対応）
+            // ルール：location ノードを DFS 順（= 表示の上→下順）で列挙し、
+            //         各 location 配下の session.sid を集めて moment.locations に詰める
+            function rebuildMomentLocationsFromTree(moment) {
+                if (!moment.relationshipRoot) return;
+
+                var newLocations = [];
+
+                function collectLocationNodes(node) {
+                    if (!node) return;
+
+                    if (node.type === "location") {
+                        // この location の直下（配下）にある session を集める（深い階層でも拾う）
+                        var sessIds = [];
+
+                        function collectSessions(n) {
+                            if (!n || !n.children) return;
+                            n.children.forEach(function (ch) {
+                                if (ch && ch.type === "session") sessIds.push(ch.sid);
+                                collectSessions(ch);
+                            });
+                        }
+                        collectSessions(node);
+
+                        newLocations.push({ sessions: sessIds });
+                    }
+
+                    if (!node.children) return;
+                    node.children.forEach(function (ch) { collectLocationNodes(ch); });
+                }
+
+                collectLocationNodes(moment.relationshipRoot);
+
+                moment.locations = newLocations;
+            }
+
+            // -----------------------------
+            // Apply fixed location order (from greedy insertion)
+            // -----------------------------
+
+            function minLocRankInSubtree(node, locRank, fallback) {
+                if (!node) return fallback;
+
+                // leaf location node: id が locId
+                if (node.type === "location" && node.id !== undefined && node.id !== null) {
+                    return (locRank && locRank[node.id] !== undefined) ? locRank[node.id] : fallback;
+                }
+
+                var kids = node.children || [];
+                if (kids.length === 0) return fallback;
+
+                var best = fallback;
+                for (var i = 0; i < kids.length; ++i) {
+                    var v = minLocRankInSubtree(kids[i], locRank, fallback);
+                    if (v < best) best = v;
+                }
+                return best;
+            }
+
+            // locationTree（root/locGroup/location）の並びを “locRank” に合わせて固定する
+            function applyFixedLocationOrder(node, locRank) {
+                if (!node || !node.children) return;
+
+                // 先に再帰（下からでも上からでもOK。ここは上からで問題なし）
+                node.children.forEach(function (ch) { applyFixedLocationOrder(ch, locRank); });
+
+                // このノードが locationTree 側なら、その子の locationTree ノードの順序を固定する
+                var isLocTreeNode = (node.type === "root" || node.type === "locGroup" || node.type === "location");
+                if (!isLocTreeNode) return;
+
+                var kids = node.children;
+                var locTreeKids = [];
+                var otherKids = [];
+
+                for (var i = 0; i < kids.length; ++i) {
+                    var ch = kids[i];
+                    var chIsLocTree = (ch && (ch.type === "locGroup" || ch.type === "location"));
+                    if (chIsLocTree) locTreeKids.push(ch);
+                    else otherKids.push(ch); // session/entityなど
+                }
+
+                if (locTreeKids.length <= 1) return;
+
+                var fallback = 1e18;
+                locTreeKids.sort(function (a, b) {
+                    var ra = minLocRankInSubtree(a, locRank, fallback);
+                    var rb = minLocRankInSubtree(b, locRank, fallback);
+                    if (ra !== rb) return ra - rb;
+
+                    // 同点安定化（name/id）
+                    var na = (a.name || "") + ":" + (a.id || "");
+                    var nb = (b.name || "") + ":" + (b.id || "");
+                    return na < nb ? -1 : (na > nb ? 1 : 0);
+                });
+
+                // ★locationTree の子は固定順、session/entity は順序維持で末尾（locationの下に付く想定）
+                node.children = locTreeKids.concat(otherKids);
+            }
+
+            function hasDirectSessionChild(node) {
+                if (!node || !node.children) return false;
+                for (var i = 0; i < node.children.length; i++) {
+                    if (node.children[i] && node.children[i].type === "session") return true;
+                }
+                return false;
+            }
+
+            function collectActiveLocationInfo(root) {
+                var seen = {};
+                var ordered = [];
+
+                function walk(node) {
+                    if (!node) return;
+                    if (node.type === "location" && hasDirectSessionChild(node)) {
+                        var id = node.id;
+                        if (seen[id] !== true) {
+                            seen[id] = true;
+                            ordered.push(id);
+                        }
+                    }
+                    if (node.children) node.children.forEach(walk);
+                }
+
+                walk(root);
+
+                var ids = [];
+                for (var k in seen) {
+                    if (seen.hasOwnProperty(k)) ids.push(parseInt(k, 10));
+                }
+                ids.sort(function (a, b) { return a - b; });
+
+                return { ids: ids, order: ordered };
+            }
+
+            function buildLocRankFromOrder(order) {
+                var rank = {};
+                for (var i = 0; i < order.length; i++) rank[order[i]] = i;
+                return rank;
+            }
+
+            function collectEntitiesInOrderWithLocRank(node, out, locRank) {
+                if (!node) return;
+                if (node.type === "entity") {
+                    out.push(node.id);
+                    return;
+                }
+                if (!node.children) return;
+
+                var isLocTreeNode = (node.type === "root" || node.type === "locGroup" || node.type === "location");
+                var kids = node.children;
+                if (!isLocTreeNode) {
+                    for (var i = 0; i < kids.length; i++) {
+                        collectEntitiesInOrderWithLocRank(kids[i], out, locRank);
+                    }
+                    return;
+                }
+
+                var locTreeKids = [];
+                var otherKids = [];
+                for (var k = 0; k < kids.length; k++) {
+                    var ch = kids[k];
+                    if (ch && (ch.type === "locGroup" || ch.type === "location")) locTreeKids.push(ch);
+                    else otherKids.push(ch);
+                }
+
+                if (locTreeKids.length > 1 && locRank) {
+                    var fallback = 1e18;
+                    locTreeKids.sort(function (a, b) {
+                        var ra = minLocRankInSubtree(a, locRank, fallback);
+                        var rb = minLocRankInSubtree(b, locRank, fallback);
+                        if (ra !== rb) return ra - rb;
+                        var na = (a.name || "") + ":" + (a.id || "");
+                        var nb = (b.name || "") + ":" + (b.id || "");
+                        return na < nb ? -1 : (na > nb ? 1 : 0);
+                    });
+                }
+
+                var orderedKids = locTreeKids.concat(otherKids);
+                for (var j = 0; j < orderedKids.length; j++) {
+                    collectEntitiesInOrderWithLocRank(orderedKids[j], out, locRank);
+                }
+            }
+
+            function findBestLocRankByScore(root, referenceSortedCharacters, alpha, maxPermute) {
+                if (!root) return null;
+
+                var info = collectActiveLocationInfo(root);
+                var activeLocIds = info.ids;
+                if (activeLocIds.length <= 1) {
+                    return activeLocIds.length ? buildLocRankFromOrder(activeLocIds) : null;
+                }
+
+                var w = (typeof alpha === "number") ? alpha : 0.0;
+                if (w < 0) w = 0;
+                if (w > 1) w = 1;
+
+                var targetOrder = orderLocationIdsByTree(activeLocIds, locationPathMap);
+
+                function scoreForOrder(order) {
+                    var locRank = buildLocRankFromOrder(order);
+                    var currentOrder = [];
+                    collectEntitiesInOrderWithLocRank(root, currentOrder, locRank);
+
+                    var crossNorm = 0;
+                    if (referenceSortedCharacters && referenceSortedCharacters.length > 1 && currentOrder.length > 1) {
+                        var kdCross = kendallDistance(referenceSortedCharacters, currentOrder);
+                        crossNorm = kdCross.normalized;
+                    }
+
+                    var stableNorm = 0;
+                    if (targetOrder && targetOrder.length > 1) {
+                        var kdStable = kendallDistance(order, targetOrder);
+                        stableNorm = kdStable.normalized;
+                    }
+
+                    return (1.0 - w) * crossNorm + w * stableNorm;
+                }
+
+                var bestOrder = targetOrder.slice();
+                var bestScore = scoreForOrder(bestOrder);
+                var limit = (typeof maxPermute === "number") ? maxPermute : 7;
+
+                function consider(order) {
+                    var s = scoreForOrder(order);
+                    if (s < bestScore) {
+                        bestScore = s;
+                        bestOrder = order.slice();
+                    }
+                }
+
+                if (activeLocIds.length > limit) {
+                    if (info.order && info.order.length) consider(info.order);
+                    consider(activeLocIds);
+                    return buildLocRankFromOrder(bestOrder);
+                }
+
+                var perm = new Array(activeLocIds.length);
+                var usedPerm = new Array(activeLocIds.length);
+
+                function backtrack(depth) {
+                    if (depth === activeLocIds.length) {
+                        consider(perm);
+                        return;
+                    }
+                    for (var p = 0; p < activeLocIds.length; p++) {
+                        if (usedPerm[p]) continue;
+                        usedPerm[p] = true;
+                        perm[depth] = activeLocIds[p];
+                        backtrack(depth + 1);
+                        usedPerm[p] = false;
+                    }
+                }
+
+                backtrack(0);
+                return buildLocRankFromOrder(bestOrder);
+            }
+
+
+            // 参照フレームを使って moment.relationshipRoot を並べ替え、moment.sortedCharacters/locations を更新
+            function sortMomentByRelationshipTree(moment, referenceSortedCharacters, options) {
+                if (!referenceSortedCharacters) referenceSortedCharacters = [];
+                if (!moment.relationshipRoot) return;
+
+                // 参照順位
+                var refRank = buildRefRank(referenceSortedCharacters);
+                var fallbackWeight = referenceSortedCharacters.length + 9999;
+                var baseRank = buildBaseRank(moment.d3 ? moment.d3.baseOrder : null);
+                var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+                    ? options.algorithm.consistencyWeight
+                    : 0.0;
+
+                // ★追加：前回の重み（この moment 自身が持つ）
+                var prevWeightByChar = (moment.d3 && moment.d3.weightByChar) ? moment.d3.weightByChar : {};
+
+                computeWeightsBottomUp(moment.relationshipRoot, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
+
+                // 1) barycenter による level-by-level bottom-up sort
+                barycenterSortBottomUp(moment.relationshipRoot);
+
+                // 2) locationTree順固定（αに応じて交差最小化↔安定をブレンド）
+                var locRank = findBestLocRankByScore(moment.relationshipRoot, referenceSortedCharacters, consistencyWeight, 7);
+                if (!locRank) {
+                    locRank = (moment.d3 && moment.d3.locRank) ? moment.d3.locRank : null;
+                }
+                if (locRank) {
+                    if (!moment.d3) moment.d3 = {};
+                    moment.d3.locRank = locRank;
+                }
+                applyFixedLocationOrder(moment.relationshipRoot, locRank);
+
+                // 3) （ここで sortNonLocationNodesBottomUp は不要になる）
+                // sortNonLocationNodesBottomUp(moment.relationshipRoot);  // ←消してOK
+
+                var ordered = [];
+                collectEntitiesInOrder(moment.relationshipRoot, ordered);
+                moment.sortedCharacters = ordered;
+                rebuildMomentLocationsFromTree(moment);
+
+                // ★追加：次回のために weightByChar を更新（現在の縦位置＝weight）
+                // ここでは「現在の順序そのもの」を 1..n の weight として保存する（揺れ止め）
+                if (!moment.d3) moment.d3 = {};
+                moment.d3.weightByChar = {};
+                for (var i = 0; i < moment.sortedCharacters.length; ++i) {
+                    moment.d3.weightByChar[moment.sortedCharacters[i]] = i + 1;
+                }
+            }
+
+            // -----------------------------
+            // (6) Initial ordering for the first frame (hierarchy-consistent)
+            // -----------------------------
+            function initializeFirstMomentOrdering(moment) {
+                if (!moment.relationshipRoot) return;
+
+                function visit(node) {
+                    if (!node) return;
+
+                    // location ノードに来たら、その直下（配下）の session を整理
+                    if (node.type === "location") {
+                        if (!node.children) node.children = [];
+
+                        var sessions = [];
+                        var others = [];
+
+                        node.children.forEach(function (ch) {
+                            if (ch && ch.type === "session") sessions.push(ch);
+                            else others.push(ch);
+                        });
+
+                        sessions.sort(function (a, b) {
+                            var sa = (a.children ? a.children.length : 0);
+                            var sb = (b.children ? b.children.length : 0);
+                            if (sa !== sb) return sb - sa;
+                            return (a.sid || 0) - (b.sid || 0);
+                        });
+
+                        sessions.forEach(function (sNode) {
+                            if (!sNode.children) sNode.children = [];
+                            sNode.children.sort(function (ea, eb) { return (ea.id || 0) - (eb.id || 0); });
+                        });
+
+                        node.children = sessions.concat(others);
+                    }
+
+                    if (node.children) node.children.forEach(visit);
+                }
+
+                visit(moment.relationshipRoot);
+
+                var ordered = [];
+                collectEntitiesInOrder(moment.relationshipRoot, ordered);
+                moment.sortedCharacters = ordered;
+
+                rebuildMomentLocationsFromTree(moment);
+            }
+
+            // -----------------------------
+            // Location ordering (5.2 part-1): greedy insertion
+            // -----------------------------
+
+            function orderLocationIdsByTree(locIds, pathMap) {
+                if (!pathMap) return locIds.slice();
+                var ids = locIds.slice();
+                ids.sort(function (a, b) {
+                    var pa = pathMap[a];
+                    var pb = pathMap[b];
+                    if (!pa && !pb) return a - b;
+                    if (!pa) return 1;
+                    if (!pb) return -1;
+                    var len = Math.min(pa.length, pb.length);
+                    for (var i = 0; i < len; i++) {
+                        if (pa[i] !== pb[i]) return pa[i] - pb[i];
+                    }
+                    if (pa.length !== pb.length) return pa.length - pb.length;
+                    return a - b;
+                });
+                return ids;
+            }
+
+            // time t と t+1 の「character -> location」を作る（その時刻に active な session を優先）
+            // 1人が複数セッションに入るデータは無い前提（あなたの仕様）
+            function buildCharToLocAtTime(dataset, time) {
+                var map = {}; // charId -> locId
+                for (var i = 0; i < dataset.sessions.length; ++i) {
+                    var s = dataset.sessions[i];
+                    if (s.start <= time && time < s.end) {
+                        for (var k = 0; k < s.members.length; ++k) {
+
+                            map[s.members[k]] = s.location;
+                        }
+                    }
+                }
+                return map;
+            }
+
+            // ある location 順序 orderLocIds（上→下）に対して、
+            // t と t+1 の間に生じる「locationレベル交差数」を数える
+            function countLocationCrossings(orderLocIds, mapT, mapT1) {
+                // locId -> index
+                var idx = {};
+                for (var i = 0; i < orderLocIds.length; ++i) idx[orderLocIds[i]] = i;
+
+                // (fromLoc, toLoc) の移動を entity ごとに集める
+                var moves = []; // {a: idxFrom, b: idxTo}
+                for (var c in mapT) {
+                    if (!mapT.hasOwnProperty(c)) continue;
+                    var fromLoc = mapT[c];
+                    var toLoc = mapT1[c];
+                    if (toLoc === undefined) continue; // t+1に居ないなら無視（データ仕様次第）
+                    if (idx[fromLoc] === undefined || idx[toLoc] === undefined) continue;
+                    moves.push({ a: idx[fromLoc], b: idx[toLoc] });
+                }
+
+                // 交差数：i<j なのに b_i > b_j の数
+                var crossings = 0;
+                for (var i2 = 0; i2 < moves.length - 1; ++i2) {
+                    for (var j2 = i2 + 1; j2 < moves.length; ++j2) {
+                        var mi = moves[i2], mj = moves[j2];
+                        if (mi.a < mj.a && mi.b > mj.b) crossings++;
+                        else if (mi.a > mj.a && mi.b < mj.b) crossings++;
+                    }
+                }
+                return crossings;
+            }
+
+            // greedy insertion で location の順序を決める
+            // locIds: この時刻に active な location id の配列
+            function greedyOrderLocations(locIds, dataset, time, nextTime) {
+                // t と t+1 の map を作って評価する（t+1 が無いときは人数降順でOK）
+                var mapT = buildCharToLocAtTime(dataset, time);
+                var mapT1 = (nextTime !== null) ? buildCharToLocAtTime(dataset, nextTime) : null;
+
+                // 人数（=その location にいる entity 数）でソートの基準を作る
+                function popCount(locId) {
+                    var cnt = 0;
+                    for (var c in mapT) if (mapT.hasOwnProperty(c) && mapT[c] === locId) cnt++;
+                    return cnt;
+                }
+
+                // 1) 最大人数を最初に置く（同点は locId 小さい順で安定化）
+                var remaining = locIds.slice().sort(function (a, b) {
+                    var da = popCount(a), db = popCount(b);
+                    if (da !== db) return db - da;
+                    return a - b;
+                });
+
+                if (remaining.length <= 1) return remaining;
+
+                var placed = [remaining.shift()];
+
+                // 2) 残りを1つずつ挿入
+                while (remaining.length > 0) {
+                    var x = remaining.shift();
+
+                    // nextTime が無い場合（最後のフレーム相当）は上に詰めるだけ
+                    if (!mapT1) {
+                        placed.push(x);
+                        continue;
+                    }
+
+                    var bestPos = 0;
+                    var bestCross = Infinity;
+
+                    // placed のどこに挿入するか全探索（0..placed.length）
+                    for (var pos = 0; pos <= placed.length; ++pos) {
+                        var cand = placed.slice(0, pos).concat([x], placed.slice(pos));
+                        var cross = countLocationCrossings(cand, mapT, mapT1);
+
+                        if (cross < bestCross) {
+                            bestCross = cross;
+                            bestPos = pos;
+                        } else if (cross === bestCross) {
+                            // 同点なら上（posが小さい方）
+                            if (pos < bestPos) bestPos = pos;
+                        }
+                    }
+
+                    placed = placed.slice(0, bestPos).concat([x], placed.slice(bestPos));
+                }
+
+                return placed;
+            }
+
+            function blendLocationOrder(greedyOrder, treeOrder, alpha) {
+                if (!isFinite(alpha) || alpha <= 0) return greedyOrder.slice();
+                if (alpha >= 1) return treeOrder.slice();
+
+                var rankGreedy = {};
+                var rankTree = {};
+                for (var i = 0; i < greedyOrder.length; i++) rankGreedy[greedyOrder[i]] = i;
+                for (var j = 0; j < treeOrder.length; j++) rankTree[treeOrder[j]] = j;
+
+                var ids = greedyOrder.slice();
+                ids.sort(function (a, b) {
+                    var rgA = (rankGreedy[a] !== undefined) ? rankGreedy[a] : 1e9;
+                    var rgB = (rankGreedy[b] !== undefined) ? rankGreedy[b] : 1e9;
+                    var rtA = (rankTree[a] !== undefined) ? rankTree[a] : 1e9;
+                    var rtB = (rankTree[b] !== undefined) ? rankTree[b] : 1e9;
+
+                    var scoreA = (1 - alpha) * rgA + alpha * rtA;
+                    var scoreB = (1 - alpha) * rgB + alpha * rtB;
+                    if (scoreA !== scoreB) return scoreA - scoreB;
+                    if (rtA !== rtB) return rtA - rtB;
+                    if (rgA !== rgB) return rgA - rgB;
+                    return a - b;
+                });
+                return ids;
+            }
+
+            function orderLocIdsByRank(activeLocIds, locRank) {
+                var ids = activeLocIds.slice();
+                ids.sort(function (a, b) {
+                    var ra = (locRank && locRank[a] !== undefined) ? locRank[a] : 1e18;
+                    var rb = (locRank && locRank[b] !== undefined) ? locRank[b] : 1e18;
+                    if (ra !== rb) return ra - rb;
+                    return a - b;
+                });
+                return ids;
+            }
+
+            function computeLocationOrder(activeLocIds, dataset, time, nextTime, alpha, relationshipRoot, referenceSortedCharacters) {
+                if (relationshipRoot && referenceSortedCharacters && referenceSortedCharacters.length > 0) {
+                    var bestRank = findBestLocRankByScore(relationshipRoot, referenceSortedCharacters, alpha, 7);
+                    if (bestRank) {
+                        return orderLocIdsByRank(activeLocIds, bestRank);
+                    }
+                }
+
+                if (locationPathMap) return orderLocationIdsByTree(activeLocIds, locationPathMap);
+                return greedyOrderLocations(activeLocIds, dataset, time, nextTime);
+            }
+
+            // moment.locations を「locOrderIds（上→下）」の順に並べ替える
+            function reorderMomentLocationsById(moment, locOrderIds) {
+                var newArr = [];
+                for (var i = 0; i < locOrderIds.length; ++i) {
+                    var locId = locOrderIds[i];
+                    if (moment.locations[locId] !== undefined) {
+                        newArr.push(moment.locations[locId]);
+                    }
+                }
+                // moment.locations は今「locId を添字にした疎配列」になってるので、
+                // 描画が期待している「上から順の配列」に置き換える
+                moment.locations = newArr;
+            }
+
+            // relationshipRoot の直下（兄弟 location）も同じ順に並べ替える
+            // ※ root->children が Region0/1/2 みたいな構造のときに効く
+            function reorderRelationshipTreeLocationsByOrder(root, locOrderIds) {
+                if (!root) return;
+
+                // locId -> rank
+                var rank = {};
+                for (var i = 0; i < locOrderIds.length; i++) rank[locOrderIds[i]] = i;
+
+                function isRealLocationNode(n) {
+                    return n && n.type === "location" && typeof n.id === "number";
+                }
+
+                function dfs(node) {
+                    if (!node || !node.children) return;
+
+                    // まず子を再帰
+                    node.children.forEach(dfs);
+
+                    // この node の直下で「location 兄弟」を rank で並べ替える
+                    var locKids = [];
+                    var otherKids = [];
+
+                    node.children.forEach(function (ch) {
+                        if (isRealLocationNode(ch)) locKids.push(ch);
+                        else otherKids.push(ch);
+                    });
+
+                    locKids.sort(function (a, b) {
+                        var ra = (rank[a.id] !== undefined) ? rank[a.id] : 1e18;
+                        var rb = (rank[b.id] !== undefined) ? rank[b.id] : 1e18;
+                        if (ra !== rb) return ra - rb;
+                        return a.id - b.id;
+                    });
+
+                    node.children = otherKids.concat(locKids);
+                    // ↑ region等(otherKids)はそのまま、同レベルのlocationだけ順序適用
+                }
+
+                dfs(root);
+            }
+
+
+            if (options.characters.toKeep != null) {
+                dataset.characters.forEach(function (character) {
+                    character.isRemoved = (options.characters.toKeep.indexOf(String(character.id)) == -1);
+                });
+
+                dataset.sessions.forEach(function (session) {
+                    session.members = session.members.filter(function (member) {
+                        return options.characters.toKeep.indexOf(String(member)) != -1;
+                    })
+                });
+
+                dataset.sessions = dataset.sessions.filter(function (session) {
+                    return session.members.length != 0;
+                })
+            }
+
+            function optimizeMoment(moment, charactersMapping, performSorting, timeIndex, nextTimeIndex) {
+                // --- Location ordering: greedy insertion (paper 5.2 part-1) ---
+                (function () {
+                    // moment.locations は疎配列の可能性があるので active locId を拾う
+                    var activeLocIds = [];
+                    for (var lid = 0; lid < moment.locations.length; ++lid) {
+                        if (moment.locations[lid] !== undefined) activeLocIds.push(lid);
+                    }
+
+                    var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+                        ? options.algorithm.consistencyWeight
+                        : 0.0;
+                    var orderedLocIds = computeLocationOrder(
+                        activeLocIds,
+                        dataset,
+                        timeIndex,
+                        (nextTimeIndex !== null ? nextTimeIndex : null),
+                        consistencyWeight,
+                        null,
+                        null
+                    );
+
+                    reorderMomentLocationsById(moment, orderedLocIds);
+                })();
+
+                if (performSorting != undefined && performSorting == true)
+                    moment.locations.forEach(function (location) {
+                        location.sessions.sort(function (x, y) {
+                            var xWeight = dataset.sessions[x].members
+                                .map(function (x) {
+                                    return charactersMapping[moment.sortedCharacters.indexOf(x)];
+                                }).reduce(function (x, y) { return x + y; })
+                                / dataset.sessions[x].members.length;
+
+                            var yWeight = dataset.sessions[y].members
+                                .map(function (y) {
+                                    return charactersMapping[moment.sortedCharacters.indexOf(y)];
+                                }).reduce(function (x, y) { return x + y; })
+                                / dataset.sessions[y].members.length;
+
+                            return xWeight - yWeight;
+                        });
+                    });
+
+                var characters = moment.locations.map(function (x) {
+                    return x.sessions.map(function (x) {
+                        var members = dataset.sessions[x].members;
+
+                        if (performSorting != undefined && performSorting == true)
+                            members.sort(function (x, y) {
+                                return charactersMapping[moment.sortedCharacters.indexOf(x)] - charactersMapping[moment.sortedCharacters.indexOf(y)];
+                            });
+
+                        return members;
+                    })
+                });
+
+                moment.sortedCharacters = [];
+                characters.forEach(function (l) {
+                    l.forEach(function (s) {
+                        s.forEach(function (c) {
+                            moment.sortedCharacters.push(c);
+                        })
+                    })
+                });
+            }
+
+            dataset.d3 = { time: [], timeStart: timeframe.start, timeEnd: timeframe.end };
+
+            for (var time = timeframe.start; time < timeframe.end; ++time) {
+                var moment = { locations: [], sortedCharacters: [], relationshipRoot: null, d3: { weightByChar: {} } };
+
+                // 1) この時刻に active な session を moment.locations に詰める（疎配列）
+                for (var i = 0; i < dataset.sessions.length; ++i) {
+                    var session = dataset.sessions[i];
+                    var location = moment.locations[session.location];
+
+                    if (session.start <= time && time < session.end) {
+                        if (location == undefined) location = moment.locations[session.location] = { sessions: [] };
+                        location.sessions.push(i);
+                    }
+                }
+
+                // 2) セッションが無い時刻はスキップ（必要なら push して残してもOK）
+                if (moment.locations.length === 0) {
+                    dataset.d3.time.push(moment);
+                    continue;
+                }
+
+                // 3) relationship tree を生成
+                var rel = buildRelationshipTreeAtTime(dataset, time);
+                moment.relationshipRoot = rel.root;
+
+                // 4) location ordering（貪欲挿入）で並びを確定
+                var nextTime = (time + 1 < timeframe.end) ? (time + 1) : null;
+
+                var activeLocIds = [];
+                for (var lid = 0; lid < moment.locations.length; ++lid) {
+                    if (moment.locations[lid] !== undefined) activeLocIds.push(lid);
+                }
+
+                var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+                    ? options.algorithm.consistencyWeight
+                    : 0.0;
+                var prevMoment = (dataset.d3.time.length > 0) ? dataset.d3.time[dataset.d3.time.length - 1] : null;
+                var prevSorted = (prevMoment && prevMoment.sortedCharacters) ? prevMoment.sortedCharacters : null;
+                var orderedLocIds = computeLocationOrder(
+                    activeLocIds,
+                    dataset,
+                    time,
+                    nextTime,
+                    consistencyWeight,
+                    moment.relationshipRoot,
+                    prevSorted
+                );
+
+                reorderRelationshipTreeLocationsByOrder(moment.relationshipRoot, orderedLocIds);
+                rebuildMomentLocationsFromTree(moment);
+
+                // ★固定順を保存（location の rank）
+                if (!moment.d3) moment.d3 = {};
+                moment.d3.locRank = {};
+                for (var r = 0; r < orderedLocIds.length; ++r) {
+                    moment.d3.locRank[orderedLocIds[r]] = r;
+                }
+
+                // 5) 最初のフレームだけ tree から初期順序を作る
+                var isFirstFrame = (dataset.d3.time.length === 0);
+
+                if (isFirstFrame) {
+                    initializeFirstMomentOrdering(moment);
+                } else {
+                    // 非初回は「とりあえず tree 順」を入れるだけ。最適化は sweep がやる。
+                    var ordered = [];
+                    collectEntitiesInOrder(moment.relationshipRoot, ordered);
+                    moment.sortedCharacters = ordered;
+                    rebuildMomentLocationsFromTree(moment);
+                }
+                if (!moment.d3) moment.d3 = {};
+                moment.d3.baseOrder = moment.sortedCharacters.slice();
+                dataset.d3.time.push(moment);
+
+                // デバッグ用（増えてるか確認）
+                // console.log("[annotate] pushed time=", time, "frames now=", dataset.d3.time.length);
+            }
+
+            if (options.algorithm && options.algorithm.baseOrderOverride) {
+                var bo = options.algorithm.baseOrderOverride;
+                for (var tbo = 0; tbo < dataset.d3.time.length; tbo++) {
+                    if (bo && bo[tbo]) {
+                        dataset.d3.time[tbo].d3.baseOrder = bo[tbo].slice();
+                    }
+                }
+            }
+
+            function computeRealizationMatrix(referenceMoment, currentMoment) {
+                var matrix = [];
+                for (var r = 0; r < referenceMoment.length; ++r) {
+                    matrix[r] = [];
+                    for (var c = 0; c < currentMoment.length; ++c)
+                        matrix[r][c] = referenceMoment[r] == currentMoment[c] ? 1 : 0;
+                }
+                return matrix;
+            }
+
+            var computeCrossings = function (matrix, referenceMoment, currentMoment) {
+                var crossings = 0;
+                for (var topRow = 0; topRow < referenceMoment.length - 1; ++topRow)
+                    for (var bottomRow = topRow + 1; bottomRow < referenceMoment.length; ++bottomRow)
+                        for (var leftColumn = 0; leftColumn < currentMoment.length - 1; ++leftColumn)
+                            for (var rightColumn = leftColumn + 1; rightColumn < currentMoment.length; ++rightColumn)
+                                crossings += matrix[topRow][rightColumn] * matrix[bottomRow][leftColumn];
+                return crossings;
+            };
+
+            function sortMoment(referenceMoment, currentMoment, sortRestrictions) {
+                var columnBarycenters = [];
+                var currentMapping = currentMoment.map(function (_, i) { return i; });
+                var backupMapping = currentMoment.map(function (_, i) { return i; });
+                var matrix = computeRealizationMatrix(referenceMoment, currentMoment);
+
+                for (var c = 0; c < currentMoment.length; ++c) {
+                    var weightedSum = 0;
+                    for (var r = 0; r < referenceMoment.length; ++r) weightedSum += (r + 1) * matrix[r][c];
+                    columnBarycenters[c] = weightedSum;
+                }
+
+                var crossingsBefore = computeCrossings(matrix, referenceMoment, currentMoment);
+
+                for (var restriction = 0, offset = 0; restriction < sortRestrictions.length; ++restriction) {
+                    for (var i2 = offset; i2 < offset + sortRestrictions[restriction]; ++i2) {
+                        for (var k = i2 + 1; k < offset + sortRestrictions[restriction]; ++k)
+                            if (columnBarycenters[i2] > columnBarycenters[k]) {
+                                var tmp = columnBarycenters[i2];
+                                columnBarycenters[i2] = columnBarycenters[k];
+                                columnBarycenters[k] = tmp;
+
+                                tmp = currentMapping[currentMapping[i2]];
+                                currentMapping[currentMapping[i2]] = currentMapping[currentMapping[k]];
+                                currentMapping[currentMapping[k]] = tmp;
+
+                                for (var r2 = 0; r2 < referenceMoment.length; ++r2) {
+                                    var tmp2 = matrix[r2][currentMapping[i2]];
+                                    matrix[r2][currentMapping.indexOf(i2)] = matrix[r2][currentMapping[k]];
+                                    matrix[r2][currentMapping.indexOf(k)] = tmp2;
+                                }
+                            }
+                    }
+                    offset += sortRestrictions[restriction];
+                }
+
+                var crossingsAfter = computeCrossings(matrix, referenceMoment, currentMoment);
+                if (crossingsBefore <= crossingsAfter) return { mapping: backupMapping, crossings: crossingsBefore };
+                return { mapping: currentMapping, crossings: crossingsAfter };
+            }
+
+            var bestScore = null;
+            var bestDataset = jQuery.extend(true, {}, dataset);
+
+            // ---- (5) Stable stopping condition (paper-like) ----
+            var lastTotalScore = null;
+            var stableCount = 0;
+            // options.algorithm.stableNeeded を使う（options側で 1 推奨）
+            // --------------------------------------
+
+            for (var iter = 0; iter < options.algorithm.sweepingMaxIterations; ++iter) {
+                var totalCrossings = 0;
+
+                // Forward sweep
+                for (var t = 1; t < dataset.d3.time.length; ++t) {
+                    var refF = dataset.d3.time[t - 1];
+                    var curF = dataset.d3.time[t];
+
+                    sortMomentByRelationshipTree(curF, refF.sortedCharacters, options);
+
+                    var mF = computeRealizationMatrix(refF.sortedCharacters, curF.sortedCharacters);
+                    totalCrossings += computeCrossings(mF, refF.sortedCharacters, curF.sortedCharacters);
+                }
+
+                // Backward sweep
+                for (var tb = dataset.d3.time.length - 2; tb >= 0; --tb) {
+                    var refB = dataset.d3.time[tb + 1];
+                    var curB = dataset.d3.time[tb];
+
+                    sortMomentByRelationshipTree(curB, refB.sortedCharacters, options);
+
+                    var mB = computeRealizationMatrix(curB.sortedCharacters, refB.sortedCharacters);
+                    totalCrossings += computeCrossings(mB, curB.sortedCharacters, refB.sortedCharacters);
+                }
+
+                function countKendallToBase(ds) {
+                    var total = 0;
+                    for (var t2 = 0; t2 < ds.d3.time.length; t2++) {
+                        var moment2 = ds.d3.time[t2];
+                        if (!moment2 || !moment2.sortedCharacters || !moment2.d3 || !moment2.d3.baseOrder) continue;
+                        var kd = kendallDistance(moment2.d3.baseOrder, moment2.sortedCharacters);
+                        total += kd.discordant;
+                    }
+                    return total;
+                }
+
+                var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+                    ? options.algorithm.consistencyWeight
+                    : 0.0;
+                var totalKendall = countKendallToBase(dataset);
+                var totalScore = (1.0 - consistencyWeight) * totalCrossings + consistencyWeight * totalKendall;
+
+                // best 保存（交差 vs 一貫性の加重スコアで選択）
+                if (bestScore === null || totalScore <= bestScore) {
+                    bestScore = totalScore;
+                    bestDataset = jQuery.extend(true, {}, dataset);
+                }
+
+                // ---- paper-like stop: crossing が減らないなら止める ----
+                if (lastTotalScore !== null) {
+                    if (totalScore >= lastTotalScore) stableCount += 1;
+                    else stableCount = 0;
+                }
+                lastTotalScore = totalScore;
+
+                if (stableCount >= (options.algorithm.stableNeeded || 1)) break;
+            }
+
+            // ============================================================
+            // 5.3 Alignment (paper exact): session alignment (weighted LCS)
+            //   + line alignment inside matched sessions (entity LCS)
+            // Produces: dataset.d3.time[t].d3.alignment = {
+            //   sessionPairs: [{ sidL, sidR, score, alignedEntities:[cid...]}...],
+            //   alignedSegments: [{cid, t0, t1, sidL, sidR}...]
+            // }
+            // ============================================================
+
+            function buildSessionSequence(moment) {
+                // Top-to-bottom session sequence S = {s1..sk}
+                // We use moment.locations order + location.sessions order.
+                // For each session, build ordered entity list by filtering moment.sortedCharacters.
+                var seq = [];
+                if (!moment || !moment.locations) return seq;
+
+                // Build quick membership map per session
+                for (var li = 0; li < moment.locations.length; li++) {
+                    var loc = moment.locations[li];
+                    if (!loc || !loc.sessions) continue;
+
+                    for (var si = 0; si < loc.sessions.length; si++) {
+                        var sid = loc.sessions[si];
+                        var sess = dataset.sessions[sid];
+                        if (!sess) continue;
+
+                        var mem = {};
+                        for (var k = 0; k < sess.members.length; k++) mem[sess.members[k]] = true;
+
+                        // entity order = moment.sortedCharacters filtered by members
+                        var ordered = [];
+                        for (var p = 0; p < moment.sortedCharacters.length; p++) {
+                            var cid = moment.sortedCharacters[p];
+                            if (mem[cid]) ordered.push(cid);
+                        }
+
+                        seq.push({
+                            sid: sid,
+                            membersOrdered: ordered
+                        });
+                    }
+                }
+                return seq;
+            }
+
+            // Standard LCS (returns matched element values, not just length)
+            function lcsMatchedElements(a, b) {
+                var m = a.length, n = b.length;
+                var dp = new Array(m + 1);
+                var dir = new Array(m + 1); // 0 diag, 1 up, 2 left
+                for (var i = 0; i <= m; i++) {
+                    dp[i] = new Array(n + 1).fill(0);
+                    dir[i] = new Array(n + 1).fill(0);
+                }
+
+                for (var i2 = 1; i2 <= m; i2++) {
+                    for (var j2 = 1; j2 <= n; j2++) {
+                        if (a[i2 - 1] === b[j2 - 1]) {
+                            var vDiag = dp[i2 - 1][j2 - 1] + 1;
+                            var vUp = dp[i2 - 1][j2];
+                            var vLeft = dp[i2][j2 - 1];
+                            var best = vDiag;
+                            var d = 0;
+                            if (vUp > best) { best = vUp; d = 1; }
+                            if (vLeft > best) { best = vLeft; d = 2; }
+
+                            // tie-break: prefer diag (more “straight”), then up, then left
+                            if (vDiag === best) d = 0;
+                            else if (vUp === best) d = 1;
+                            else d = 2;
+
+                            dp[i2][j2] = best;
+                            dir[i2][j2] = d;
+                        } else {
+                            var up = dp[i2 - 1][j2];
+                            var left = dp[i2][j2 - 1];
+                            if (up > left) {
+                                dp[i2][j2] = up;
+                                dir[i2][j2] = 1;
+                            } else if (left > up) {
+                                dp[i2][j2] = left;
+                                dir[i2][j2] = 2;
+                            } else {
+                                // tie-break: prefer up (stable)
+                                dp[i2][j2] = up;
+                                dir[i2][j2] = 1;
+                            }
+                        }
+                    }
+                }
+
+                // traceback
+                var out = [];
+                var i3 = m, j3 = n;
+                while (i3 > 0 && j3 > 0) {
+                    var d2 = dir[i3][j3];
+                    if (d2 === 0 && a[i3 - 1] === b[j3 - 1]) {
+                        out.push(a[i3 - 1]);
+                        i3--; j3--;
+                    } else if (d2 === 1) {
+                        i3--;
+                    } else {
+                        j3--;
+                    }
+                }
+                out.reverse();
+                return out;
+            }
+
+            function straightCount(sessionL, sessionR) {
+                // Paper: straight(li, rj) = max number of straight segments obtainable from li and rj.
+                // With fixed ordering, this equals LCS length between ordered entity lists.
+                return lcsMatchedElements(sessionL.membersOrdered, sessionR.membersOrdered).length;
+            }
+
+            function sessionSim(i1based, j1based, m, n, sessionL, sessionR, alpha) {
+                // Paper Eq.(3): sim(li,rj) = straight(li,rj) + α * (1 - | i/m - j/n | )
+                var st = straightCount(sessionL, sessionR);
+                var posTerm = 1.0 - Math.abs((i1based / m) - (j1based / n));
+                return st + alpha * posTerm;
+            }
+
+            function alignSessionsWeightedLCS(seqL, seqR, alpha) {
+                // Paper Eq.(4) + DP recurrence (weighted LCS)
+                var m = seqL.length, n = seqR.length;
+                var dp = new Array(m + 1);
+                var dir = new Array(m + 1); // 0 diag, 1 up, 2 left
+                for (var i = 0; i <= m; i++) {
+                    dp[i] = new Array(n + 1).fill(0);
+                    dir[i] = new Array(n + 1).fill(0);
+                }
+
+                for (var i2 = 1; i2 <= m; i2++) {
+                    for (var j2 = 1; j2 <= n; j2++) {
+                        var sim = sessionSim(i2, j2, m, n, seqL[i2 - 1], seqR[j2 - 1], alpha);
+
+                        var vDiag = dp[i2 - 1][j2 - 1] + sim;
+                        var vUp = dp[i2 - 1][j2];
+                        var vLeft = dp[i2][j2 - 1];
+
+                        var best = vUp;
+                        var d = 1;
+
+                        if (vLeft > best) { best = vLeft; d = 2; }
+                        if (vDiag > best) { best = vDiag; d = 0; }
+
+                        // tie-break (important for stability):
+                        // prefer diag (more alignment), then up, then left
+                        if (vDiag === best) d = 0;
+                        else if (vUp === best) d = 1;
+                        else d = 2;
+
+                        dp[i2][j2] = best;
+                        dir[i2][j2] = d;
+                    }
+                }
+
+                // traceback to get matched session pairs in order
+                var pairs = [];
+                var i3 = m, j3 = n;
+                while (i3 > 0 && j3 > 0) {
+                    var d2 = dir[i3][j3];
+                    if (d2 === 0) {
+                        // matched (i3-1, j3-1)
+                        pairs.push({ i: i3 - 1, j: j3 - 1, score: dp[i3][j3] - dp[i3 - 1][j3 - 1] });
+                        i3--; j3--;
+                    } else if (d2 === 1) {
+                        i3--;
+                    } else {
+                        j3--;
+                    }
+                }
+                pairs.reverse();
+                return { score: dp[m][n], pairs: pairs };
+            }
+
+            function computeAlignmentForAllFrames(ds, options) {
+                var alpha = (options.algorithm && typeof options.algorithm.alpha === "number")
+                    ? options.algorithm.alpha
+                    : 0.1; // paper default
+
+                for (var t = 0; t < ds.d3.time.length - 1; t++) {
+                    var L = ds.d3.time[t];
+                    var R = ds.d3.time[t + 1];
+                    if (!L || !R) continue;
+
+                    var SL = buildSessionSequence(L);
+                    var SR = buildSessionSequence(R);
+
+                    var res = alignSessionsWeightedLCS(SL, SR, alpha);
+
+                    var sessionPairs = [];
+                    var alignedSegments = [];
+
+                    for (var p = 0; p < res.pairs.length; p++) {
+                        var pr = res.pairs[p];
+                        var sL = SL[pr.i];
+                        var sR = SR[pr.j];
+
+                        // line alignment inside matched session pair:
+                        // aligned entity segments = LCS elements between ordered member lists
+                        var alignedEntities = lcsMatchedElements(sL.membersOrdered, sR.membersOrdered);
+
+                        sessionPairs.push({
+                            sidL: sL.sid,
+                            sidR: sR.sid,
+                            score: sessionSim(pr.i + 1, pr.j + 1, SL.length, SR.length, sL, sR, alpha),
+                            alignedEntities: alignedEntities
+                        });
+
+                        // produce ↔ constraints candidates (Si,t ↔ Si,t+1) for aligned entities
+                        for (var k = 0; k < alignedEntities.length; k++) {
+                            alignedSegments.push({
+                                cid: alignedEntities[k],
+                                t0: t,
+                                t1: t + 1,
+                                sidL: sL.sid,
+                                sidR: sR.sid
+                            });
+                        }
+                    }
+
+                    if (!L.d3) L.d3 = {};
+                    L.d3.alignment = {
+                        alpha: alpha,
+                        dpScore: res.score,
+                        sessionPairs: sessionPairs,
+                        alignedSegments: alignedSegments
+                    };
+                }
+            }
+
+            // After sweeping, compute alignment on the bestDataset (not the transient dataset)
+            computeAlignmentForAllFrames(bestDataset, options);
+
+            // ============================================================
+            // 5.4 Compaction (QP) via ADMM: minimize wiggle + whitespace
+            // s.t. (5a) order, (5b) alignment eq, (5c) din eq, (5d) dout ineq
+            // Output: bestDataset.d3.time[t].d3.y[cid] (absolute y)
+            // ============================================================
+
+            // ---- sparse builder (CSC-like but we use dense ops eventually) ----
+            function makeVarIndexer(nChars, nTimes) {
+                return {
+                    nChars: nChars,
+                    nTimes: nTimes,
+                    nVar: nChars * nTimes,
+                    idx: function (cid, t) { return cid * nTimes + t; }
+                };
+            }
+
+            function zeros(n) { return new Float64Array(n); }
+
+            function dotRowAx(rowCols, rowVals, x) {
+                var s = 0;
+                for (var k = 0; k < rowCols.length; k++) s += rowVals[k] * x[rowCols[k]];
+                return s;
+            }
+
+            // Build session blocks at time t: each block is ordered member list (top->bottom)
+            function getSessionBlocksAtTime(ds, moment) {
+                var blocks = [];
+                if (!moment || !moment.locations) return blocks;
+
+                // 1) multi-member session blocks (>=2)
+                var inAnyBlock = {}; // cid -> true
+
+                for (var li = 0; li < moment.locations.length; li++) {
+                    var loc = moment.locations[li];
+                    if (!loc || !loc.sessions) continue;
+
+                    for (var si = 0; si < loc.sessions.length; si++) {
+                        var sid = loc.sessions[si];
+                        var sess = ds.sessions[sid];
+                        if (!sess || !sess.members) continue;
+
+                        // build ordered members by current vertical order
+                        var mem = {};
+                        for (var k = 0; k < sess.members.length; k++) mem[sess.members[k]] = true;
+
+                        var ordered = [];
+                        for (var p = 0; p < moment.sortedCharacters.length; p++) {
+                            var cid = moment.sortedCharacters[p];
+                            if (mem[cid]) ordered.push(cid);
+                        }
+
+                        if (ordered.length >= 2) {
+                            blocks.push({ sid: sid, members: ordered });
+                            for (var z = 0; z < ordered.length; z++) inAnyBlock[ordered[z]] = true;
+                        }
+                    }
+                }
+
+                // 2) singleton blocks for isolated characters (not in any >=2 session)
+                // This is crucial to keep dout constraints alive and avoid collapse.
+                if (moment.sortedCharacters) {
+                    for (var i = 0; i < moment.sortedCharacters.length; i++) {
+                        var cid2 = moment.sortedCharacters[i];
+                        if (!inAnyBlock[cid2]) {
+                            blocks.push({ sid: -1, members: [cid2] }); // sid=-1 means "isolated"
+                        }
+                    }
+                }
+
+                return blocks;
+            }
+
+            // Build objective: 0.5 x^T Q x + q^T x
+            // wiggle: sum (y(i,t+1)-y(i,t))^2
+            // white : lambda * sum_{session-boundary} ((y_lo - y_up) - dout)^2
+            function buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight) {
+                var n = varIx.nVar;
+
+                // dense symmetric Q
+                var Q = new Array(n);
+                for (var i = 0; i < n; i++) Q[i] = new Float64Array(n);
+
+                // linear term q
+                var q = new Float64Array(n);
+
+                function addQuadDiff(a, b, w) {
+                    // contributes w*(xa-xb)^2 to objective
+                    // objective is 0.5 x^T Q x + q^T x
+                    Q[a][a] += 2 * w;
+                    Q[b][b] += 2 * w;
+                    Q[a][b] += -2 * w;
+                    Q[b][a] += -2 * w;
+                }
+
+                function addBoundarySlackSquared(a, b, w, d) {
+                    // w*((xa-xb)-d)^2 = w*(xa-xb)^2 - 2*w*d*(xa-xb) + const
+                    // quadratic part:
+                    addQuadDiff(a, b, w);
+
+                    // linear part: -2*w*d*xa + 2*w*d*xb
+                    q[a] += -2 * w * d;
+                    q[b] += +2 * w * d;
+                }
+
+                var nChars = varIx.nChars, nTimes = varIx.nTimes;
+                var wWiggle = (typeof wiggleWeight === "number") ? wiggleWeight : 1.0;
+
+                // (1) wiggle
+                for (var cid = 0; cid < nChars; cid++) {
+                    for (var t = 0; t < nTimes - 1; t++) {
+                        addQuadDiff(varIx.idx(cid, t), varIx.idx(cid, t + 1), wWiggle);
+                    }
+                }
+
+                // (2) white space: ONLY session boundaries (different blocks) at each time
+                for (var t2 = 0; t2 < nTimes; t2++) {
+                    var moment = ds.d3.time[t2];
+                    if (!moment || !moment.sortedCharacters || moment.sortedCharacters.length < 2) continue;
+
+                    // build blocks and char->block
+                    var blocks = getSessionBlocksAtTime(ds, moment);
+                    var charToBlock = {};
+                    for (var bi = 0; bi < blocks.length; bi++) {
+                        var ms = blocks[bi].members;
+                        for (var ii = 0; ii < ms.length; ii++) charToBlock[ms[ii]] = bi;
+                    }
+
+                    var ord = moment.sortedCharacters;
+
+                    // boundary = adjacent pair in global order that belongs to different session blocks
+                    for (var k = 0; k < ord.length - 1; k++) {
+                        var up = ord[k], lo = ord[k + 1];
+                        var bu = charToBlock[up], bl = charToBlock[lo];
+                        if (bu === undefined || bl === undefined) continue;
+                        if (bu === bl) continue; // within-session spacing is handled by din equality constraints
+
+                        // add ((y_lo - y_up) - dout)^2
+                        addBoundarySlackSquared(
+                            varIx.idx(lo, t2),
+                            varIx.idx(up, t2),
+                            lambdaWhite,
+                            dout
+                        );
+                    }
+                }
+
+                return { Q: Q, q: q };
+            }
+
+            // Build linear constraints in row form:
+            // each row is (cols[], vals[]), with bounds l,u
+            function buildConstraintsRows(ds, varIx, din, dout, epsOrder) {
+                var rows = [];
+                var l = [];
+                var u = [];
+                var INF = 1e30;
+
+                function addRow(cols, vals, lo, up) {
+                    rows.push({ cols: cols, vals: vals });
+                    l.push(lo);
+                    u.push(up);
+                }
+
+                var nTimes = varIx.nTimes;
+
+                // (5a) order: y(lower,t) - y(upper,t) >= epsOrder
+                for (var t = 0; t < nTimes; t++) {
+                    var order = ds.d3.time[t].sortedCharacters;
+                    if (!order || order.length < 2) continue;
+                    for (var k = 0; k < order.length - 1; k++) {
+                        var upper = order[k], lower = order[k + 1];
+                        addRow(
+                            [varIx.idx(lower, t), varIx.idx(upper, t)],
+                            [1, -1],
+                            epsOrder,
+                            INF
+                        );
+                    }
+                }
+
+                // (5b) alignment: y(cid,t+1) - y(cid,t) = 0
+                for (var t2 = 0; t2 < nTimes - 1; t2++) {
+                    var al = ds.d3.time[t2].d3 && ds.d3.time[t2].d3.alignment;
+                    if (!al || !al.alignedSegments) continue;
+                    var segs = al.alignedSegments;
+                    for (var s = 0; s < segs.length; s++) {
+                        var cid = segs[s].cid;
+                        addRow(
+                            [varIx.idx(cid, t2 + 1), varIx.idx(cid, t2)],
+                            [1, -1],
+                            0,
+                            0
+                        );
+                    }
+                }
+
+                // (5c) din in-session: y(next,t) - y(prev,t) = din
+                // (5d) dout between sessions: y(lower,t)-y(upper,t) >= dout on boundaries
+                for (var t3 = 0; t3 < nTimes; t3++) {
+                    var moment = ds.d3.time[t3];
+                    if (!moment) continue;
+
+                    var blocks = getSessionBlocksAtTime(ds, moment);
+
+                    // din within each block
+                    for (var b = 0; b < blocks.length; b++) {
+                        var mems = blocks[b].members;
+                        for (var kk = 0; kk < mems.length - 1; kk++) {
+                            var a = mems[kk], b2 = mems[kk + 1];
+                            addRow(
+                                [varIx.idx(b2, t3), varIx.idx(a, t3)],
+                                [1, -1],
+                                din,
+                                din
+                            );
+                        }
+                    }
+
+                    // dout at boundaries: detect neighbors in global order belonging to different blocks
+                    var charToBlock = {};
+                    for (var bi = 0; bi < blocks.length; bi++) {
+                        var ms = blocks[bi].members;
+                        for (var ii = 0; ii < ms.length; ii++) charToBlock[ms[ii]] = bi;
+                    }
+
+                    var ord = moment.sortedCharacters;
+                    if (!ord) continue;
+
+                    for (var k3 = 0; k3 < ord.length - 1; k3++) {
+                        var up = ord[k3], lo = ord[k3 + 1];
+                        var bu = charToBlock[up], bl = charToBlock[lo];
+                        if (bu === undefined || bl === undefined) continue;
+                        if (bu === bl) continue; // already din
+                        addRow(
+                            [varIx.idx(lo, t3), varIx.idx(up, t3)],
+                            [1, -1],
+                            dout,
+                            INF
+                        );
+                    }
+                }
+
+                return { rows: rows, l: new Float64Array(l), u: new Float64Array(u) };
+            }
+
+            // Feasible initialization:
+            // build y by scanning global order at each time using din/dout; then average across time, then enforce alignment by copy.
+            function buildInitialFeasible(ds, varIx, din, dout, epsOrder) {
+                var nVar = varIx.nVar;
+                var x = new Float64Array(nVar);
+                var nTimes = varIx.nTimes;
+
+                for (var t = 0; t < nTimes; t++) {
+                    var moment = ds.d3.time[t];
+                    var ord = moment.sortedCharacters || [];
+                    if (ord.length === 0) continue;
+
+                    // boundary gaps decided by whether adjacent are in same session block or not
+                    var blocks = getSessionBlocksAtTime(ds, moment);
+                    var charToBlock = {};
+                    for (var bi = 0; bi < blocks.length; bi++) {
+                        var ms = blocks[bi].members;
+                        for (var ii = 0; ii < ms.length; ii++) charToBlock[ms[ii]] = bi;
+                    }
+
+                    var y = 0;
+                    x[varIx.idx(ord[0], t)] = y;
+
+                    for (var k = 0; k < ord.length - 1; k++) {
+                        var a = ord[k], b = ord[k + 1];
+                        var ba = charToBlock[a], bb = charToBlock[b];
+
+                        var step = din;
+                        if (ba === undefined || bb === undefined) step = din; // isolated lines treated like inside
+                        else if (ba !== bb) step = Math.max(dout, epsOrder);  // ensure order too
+
+                        y += step;
+                        x[varIx.idx(b, t)] = y;
+                    }
+                }
+
+                // enforce alignment equalities in init: for each aligned segment, copy y forward
+                for (var t2 = 0; t2 < nTimes - 1; t2++) {
+                    var al = ds.d3.time[t2].d3 && ds.d3.time[t2].d3.alignment;
+                    if (!al || !al.alignedSegments) continue;
+                    var segs = al.alignedSegments;
+                    for (var s = 0; s < segs.length; s++) {
+                        var cid = segs[s].cid;
+                        x[varIx.idx(cid, t2 + 1)] = x[varIx.idx(cid, t2)];
+                    }
+                }
+
+                return x;
+            }
+
+            // ADMM solver for convex QP:
+            // minimize 0.5 x^T Q x  s.t. l <= A x <= u
+            // We implement:
+            // x^{k+1} = argmin 0.5 x^T Q x + (rho/2)||A x - z + y||^2
+            // z^{k+1} = proj_{[l,u]}(A x^{k+1} + y^k)
+            // y^{k+1} = y^k + A x^{k+1} - z^{k+1}
+            function solveQP_ADMM(Q, q, cons, x0, rho, sigma, maxIter, epsAbs, epsRel) {
+                var rows = cons.rows, l = cons.l, u = cons.u;
+                var m = rows.length;
+                var n = x0.length;
+
+                // Build dense AtA and At vectors once (m,n small enough in your scale)
+                // For speed, pre-store rows as arrays
+                var z = new Float64Array(m);
+                var y = new Float64Array(m);
+
+                // helper: Ax
+                function Ax(x, out) {
+                    for (var i = 0; i < m; i++) {
+                        out[i] = dotRowAx(rows[i].cols, rows[i].vals, x);
+                    }
+                }
+
+                // Build matrix M = Q + rho A^T A + sigma I (dense), then factor each time with Cholesky-like (we'll do LDLT)
+                // Compute AtA (dense)
+                var AtA = new Array(n);
+                for (var i = 0; i < n; i++) AtA[i] = new Float64Array(n);
+
+                for (var r = 0; r < m; r++) {
+                    var cols = rows[r].cols, vals = rows[r].vals;
+                    for (var a = 0; a < cols.length; a++) {
+                        var ia = cols[a], va = vals[a];
+                        for (var b = 0; b < cols.length; b++) {
+                            var ib = cols[b], vb = vals[b];
+                            AtA[ia][ib] += va * vb;
+                        }
+                    }
+                }
+
+                var M = new Array(n);
+                for (var i2 = 0; i2 < n; i2++) {
+                    M[i2] = new Float64Array(n);
+                    for (var j2 = 0; j2 < n; j2++) {
+                        M[i2][j2] = Q[i2][j2] + rho * AtA[i2][j2];
+                    }
+                    M[i2][i2] += sigma;
+                }
+
+                function solveLinear(M, b) {
+                    // Gaussian elimination with partial pivot (dense)
+                    // Copy to avoid destroying M
+                    var A = new Array(n);
+                    for (var i = 0; i < n; i++) {
+                        A[i] = new Float64Array(n);
+                        A[i].set(M[i]);
+                    }
+                    var x = new Float64Array(b);
+                    // Forward elim
+                    for (var k = 0; k < n; k++) {
+                        // pivot
+                        var piv = k;
+                        var best = Math.abs(A[k][k]);
+                        for (var i = k + 1; i < n; i++) {
+                            var v = Math.abs(A[i][k]);
+                            if (v > best) { best = v; piv = i; }
+                        }
+                        if (piv !== k) {
+                            var tmp = A[k]; A[k] = A[piv]; A[piv] = tmp;
+                            var t2 = x[k]; x[k] = x[piv]; x[piv] = t2;
+                        }
+                        var akk = A[k][k];
+                        if (Math.abs(akk) < 1e-12) akk = (akk >= 0 ? 1e-12 : -1e-12);
+
+                        for (var i = k + 1; i < n; i++) {
+                            var f = A[i][k] / akk;
+                            if (f === 0) continue;
+                            for (var j = k; j < n; j++) A[i][j] -= f * A[k][j];
+                            x[i] -= f * x[k];
+                        }
+                    }
+                    // Back-sub
+                    for (var i = n - 1; i >= 0; i--) {
+                        var s = x[i];
+                        for (var j = i + 1; j < n; j++) s -= A[i][j] * x[j];
+                        var aii = A[i][i];
+                        if (Math.abs(aii) < 1e-12) aii = (aii >= 0 ? 1e-12 : -1e-12);
+                        x[i] = s / aii;
+                    }
+                    return x;
+                }
+
+                var x = new Float64Array(x0);
+                var ax = new Float64Array(m);
+                Ax(x, ax);
+
+                // init z = proj(Ax)
+                for (var i3 = 0; i3 < m; i3++) {
+                    var v = ax[i3];
+                    if (v < l[i3]) v = l[i3];
+                    if (v > u[i3]) v = u[i3];
+                    z[i3] = v;
+                    y[i3] = 0;
+                }
+
+                var rhs = new Float64Array(n);
+                var tmpAx = new Float64Array(m);
+
+                for (var it = 0; it < maxIter; it++) {
+                    // rhs = rho A^T (z - y) - q
+                    rhs.fill(0);
+                    for (var r2 = 0; r2 < m; r2++) {
+                        var w = rho * (z[r2] - y[r2]);
+                        var cols2 = rows[r2].cols, vals2 = rows[r2].vals;
+                        for (var kk2 = 0; kk2 < cols2.length; kk2++) {
+                            rhs[cols2[kk2]] += vals2[kk2] * w;
+                        }
+                    }
+                    // subtract linear term
+                    if (q) {
+                        for (var iqq = 0; iqq < n; iqq++) rhs[iqq] -= q[iqq];
+                    }
+
+                    // Solve (Q + rho A^T A + sigma I) x = rhs
+                    x = solveLinear(M, rhs);
+
+                    // Ax
+                    Ax(x, tmpAx);
+
+                    // z = proj_{[l,u]}(Ax + y)
+                    var primalInf = 0;
+                    var dualInf = 0;
+                    for (var r3 = 0; r3 < m; r3++) {
+                        var v2 = tmpAx[r3] + y[r3];
+                        var zOld = z[r3];
+                        if (v2 < l[r3]) v2 = l[r3];
+                        if (v2 > u[r3]) v2 = u[r3];
+                        z[r3] = v2;
+
+                        var rPri = tmpAx[r3] - z[r3];
+                        primalInf = Math.max(primalInf, Math.abs(rPri));
+
+                        var rDual = rho * (z[r3] - zOld);
+                        dualInf = Math.max(dualInf, Math.abs(rDual));
+                    }
+
+                    // y update
+                    for (var r4 = 0; r4 < m; r4++) {
+                        y[r4] += (tmpAx[r4] - z[r4]);
+                    }
+
+                    // stopping
+                    var epsPri = epsAbs + epsRel * Math.max(normInf(tmpAx), normInf(z));
+                    var epsDual = epsAbs + epsRel * normInf(y);
+
+                    if (primalInf <= epsPri && dualInf <= epsDual) {
+                        // console.log("[QP] converged it=", it, "pri=", primalInf, "dual=", dualInf);
+                        break;
+                    }
+                }
+
+                return x;
+
+                function normInf(v) {
+                    var mx = 0;
+                    for (var i = 0; i < v.length; i++) mx = Math.max(mx, Math.abs(v[i]));
+                    return mx;
+                }
+            }
+
+            function solveQP_OSQP(Q, q, cons, rho, sigma, maxIter, epsAbs, epsRel) {
+                if (!osqpModule) return null;
+
+                var rows = cons.rows, l = cons.l, u = cons.u;
+                var m = rows.length;
+                var n = q.length;
+
+                function denseToUpperCsc(mat, tol) {
+                    var p = new Int32Array(n + 1);
+                    var iList = [];
+                    var xList = [];
+                    var nnz = 0;
+
+                    for (var col = 0; col < n; col++) {
+                        p[col] = nnz;
+                        for (var row = 0; row <= col; row++) {
+                            var v = mat[row][col];
+                            if (Math.abs(v) > tol) {
+                                iList.push(row);
+                                xList.push(v);
+                                nnz++;
+                            }
+                        }
+                    }
+                    p[n] = nnz;
+                    return { p: p, i: new Int32Array(iList), x: new Float64Array(xList), nnz: nnz };
+                }
+
+                function rowsToCsc(rowsIn, nCols) {
+                    var counts = new Int32Array(nCols);
+                    for (var r = 0; r < rowsIn.length; r++) {
+                        var cols = rowsIn[r].cols;
+                        for (var k = 0; k < cols.length; k++) counts[cols[k]]++;
+                    }
+
+                    var p = new Int32Array(nCols + 1);
+                    var nnz2 = 0;
+                    for (var c = 0; c < nCols; c++) {
+                        p[c] = nnz2;
+                        nnz2 += counts[c];
+                    }
+                    p[nCols] = nnz2;
+
+                    var iArr = new Int32Array(nnz2);
+                    var xArr = new Float64Array(nnz2);
+                    var next = new Int32Array(p);
+
+                    for (var r2 = 0; r2 < rowsIn.length; r2++) {
+                        var cols2 = rowsIn[r2].cols;
+                        var vals2 = rowsIn[r2].vals;
+                        for (var k2 = 0; k2 < cols2.length; k2++) {
+                            var col = cols2[k2];
+                            var dest = next[col]++;
+                            iArr[dest] = r2;
+                            xArr[dest] = vals2[k2];
+                        }
+                    }
+
+                    return { p: p, i: iArr, x: xArr, nnz: nnz2 };
+                }
+
+                var P = denseToUpperCsc(Q, 1e-12);
+                var A = rowsToCsc(rows, n);
+
+                var solve = osqpModule.cwrap("osqp_solve_csc", "number",
+                    ["number", "number",
+                        "number", "number", "number", "number",
+                        "number", "number", "number", "number",
+                        "number", "number", "number",
+                        "number", "number", "number", "number", "number", "number"]);
+
+                if (!osqpModule._malloc || !osqpModule._free || !osqpModule.setValue) {
+                    console.warn("OSQP module missing memory helpers");
+                    return null;
+                }
+
+                function mallocAndCopyInt(arr) {
+                    var ptr = osqpModule._malloc(arr.length * 4);
+                    for (var idx = 0; idx < arr.length; idx++) {
+                        osqpModule.setValue(ptr + idx * 4, arr[idx], "i32");
+                    }
+                    return ptr;
+                }
+
+                function mallocAndCopyDouble(arr) {
+                    var ptr = osqpModule._malloc(arr.length * 8);
+                    for (var idx2 = 0; idx2 < arr.length; idx2++) {
+                        osqpModule.setValue(ptr + idx2 * 8, arr[idx2], "double");
+                    }
+                    return ptr;
+                }
+
+                var P_p = mallocAndCopyInt(P.p);
+                var P_i = mallocAndCopyInt(P.i);
+                var P_x = mallocAndCopyDouble(P.x);
+                var A_p = mallocAndCopyInt(A.p);
+                var A_i = mallocAndCopyInt(A.i);
+                var A_x = mallocAndCopyDouble(A.x);
+                var qPtr = mallocAndCopyDouble(q);
+                var lPtr = mallocAndCopyDouble(l);
+                var uPtr = mallocAndCopyDouble(u);
+                var xOut = osqpModule._malloc(n * 8);
+
+                var status = solve(
+                    n, m,
+                    P.nnz, P_p, P_i, P_x,
+                    A.nnz, A_p, A_i, A_x,
+                    qPtr, lPtr, uPtr,
+                    epsAbs, epsRel, maxIter, rho, sigma,
+                    xOut
+                );
+
+                var x = new Float64Array(n);
+                for (var xi = 0; xi < n; xi++) {
+                    x[xi] = osqpModule.getValue(xOut + xi * 8, "double");
+                }
+
+                osqpModule._free(P_p);
+                osqpModule._free(P_i);
+                osqpModule._free(P_x);
+                osqpModule._free(A_p);
+                osqpModule._free(A_i);
+                osqpModule._free(A_x);
+                osqpModule._free(qPtr);
+                osqpModule._free(lPtr);
+                osqpModule._free(uPtr);
+                osqpModule._free(xOut);
+
+                if (status !== 1 && status !== 2) {
+                    console.warn("OSQP status:", status, "(fallback to ADMM)");
+                    x = null;
+                }
+
+                return x;
+            }
+
+            function runCompactionQP(ds, options) {
+                var nChars = ds.characters.length;
+                var nTimes = ds.d3.time.length;
+                var varIx = makeVarIndexer(nChars, nTimes);
+
+                var din = options.algorithm.din;
+                var dout = options.algorithm.dout;
+                var epsOrder = options.algorithm.epsOrder || 1.0;
+                var lambdaWhite = options.algorithm.lambdaWhite || 0.2;
+
+                var rho = options.algorithm.rho || 2.0;
+                var sigma = options.algorithm.sigma || 1e-6;
+                var maxIter = options.algorithm.maxIterQP || 4000;
+                var epsAbs = options.algorithm.epsAbs || 1e-6;
+                var epsRel = options.algorithm.epsRel || 1e-6;
+
+                var wiggleWeight = 1.0;
+                var obj = buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight);
+                var Q = obj.Q;
+                var q = obj.q;
+
+                var cons = buildConstraintsRows(ds, varIx, din, dout, epsOrder);
+
+                var x0 = buildInitialFeasible(ds, varIx, din, dout, epsOrder);
+                var x = null;
+
+                if (options.algorithm.useOSQP && osqpModule) {
+                    x = solveQP_OSQP(Q, q, cons, rho, sigma, maxIter, epsAbs, epsRel);
+                }
+                if (!x) {
+                    x = solveQP_ADMM(Q, q, cons, x0, rho, sigma, maxIter, epsAbs, epsRel);
+                }
+
+                // store y back
+                for (var t = 0; t < nTimes; t++) {
+                    var moment = ds.d3.time[t];
+                    if (!moment.d3) moment.d3 = {};
+                    moment.d3.y = new Array(nChars);
+                    for (var cid = 0; cid < nChars; cid++) {
+                        moment.d3.y[cid] = x[varIx.idx(cid, t)];
+                    }
+                }
+            }
+
+            // ---- debug: alignment constraint volume ----
+            (function () {
+                var totalPairs = 0, totalSegs = 0;
+                var maxSegs = 0, maxT = -1;
+
+                for (var t = 0; t < bestDataset.d3.time.length - 1; t++) {
+                    var al = bestDataset.d3.time[t].d3 && bestDataset.d3.time[t].d3.alignment;
+                    if (!al) continue;
+
+                    var np = (al.sessionPairs ? al.sessionPairs.length : 0);
+                    var ns = (al.alignedSegments ? al.alignedSegments.length : 0);
+
+                    totalPairs += np;
+                    totalSegs += ns;
+
+                    if (ns > maxSegs) { maxSegs = ns; maxT = t; }
+
+                    console.log("[align] t=", t, "sessionPairs=", np, "alignedSegments=", ns, "dpScore=", al.dpScore);
+                }
+
+                console.log("[align] totalPairs=", totalPairs, "totalAlignedSegments=", totalSegs,
+                    "maxAlignedSegments=", maxSegs, "at t=", maxT);
+            })();
+            // ---- /debug ----
+
+            function countCrossingsAll(ds) {
+                var total = 0;
+                for (var t = 0; t < ds.d3.time.length - 1; t++) {
+                    var a = ds.d3.time[t].sortedCharacters;
+                    var b = ds.d3.time[t + 1].sortedCharacters;
+                    var m = computeRealizationMatrix(a, b);
+                    total += computeCrossings(m, a, b);
+                }
+                return total;
+            }
+
+            function computeDatasetMetrics(ds) {
+                var crossingsTotal = countCrossingsAll(ds);
+                var crossingsAvg = 0;
+                var kendallSum = 0;
+                var kendallCount = 0;
+                var kendallDiscordant = 0;
+                var kendallPairs = 0;
+                var crossingsSeries = [];
+                var kendallSeries = [];
+
+                for (var t = 0; t < ds.d3.time.length - 1; t++) {
+                    var a = ds.d3.time[t].sortedCharacters;
+                    var b = ds.d3.time[t + 1].sortedCharacters;
+                    if (!a || !b) continue;
+                    var m = computeRealizationMatrix(a, b);
+                    var c = computeCrossings(m, a, b);
+                    var kd = kendallDistance(a, b);
+                    crossingsSeries.push(c);
+                    kendallSeries.push(kd.normalized);
+                    kendallSum += kd.normalized;
+                    kendallCount += 1;
+                    kendallDiscordant += kd.discordant;
+                    kendallPairs += kd.totalPairs;
+                }
+
+                if (ds.d3.time.length > 1) {
+                    crossingsAvg = crossingsTotal / (ds.d3.time.length - 1);
+                }
+
+                var kendallAvg = kendallCount ? (kendallSum / kendallCount) : 0;
+                var kendallOverall = kendallPairs ? (kendallDiscordant / kendallPairs) : 0;
+
+                ds.d3.metrics = {
+                    crossingsTotal: crossingsTotal,
+                    crossingsAvg: crossingsAvg,
+                    kendallAvg: kendallAvg,
+                    kendallOverall: kendallOverall,
+                    series: {
+                        crossings: crossingsSeries,
+                        kendall: kendallSeries
+                    }
+                };
+            }
+
+            console.log("[cross] before QP =", countCrossingsAll(bestDataset));
+            runCompactionQP(bestDataset, options);
+            console.log("[cross] after  QP =", countCrossingsAll(bestDataset));
+
+            computeDatasetMetrics(bestDataset);
+            return bestDataset;
+        }
+    </script>
+</body>
+
+</html>

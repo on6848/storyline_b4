@@ -3,7 +3,7 @@
 
 <head lang="en">
   <meta charset="UTF-8">
-  <title>StoryFlow: Tracking the Evolution of Stories</title>
+  <title>StoryFlow: 3 Scales</title>
   <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
   <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
 
@@ -72,6 +72,7 @@
       stroke: #eee;
     }
 
+
     #comparisons table {
       width: 100%;
       border-collapse: collapse;
@@ -123,8 +124,9 @@
       <tr>
         <td>
           <select name="dataset" id="dataset">
-            <option value="dataset/municipality_sessions.json">市区町村セッション</option>
-            <option value="dataset/prefecture_sessions.json">都道府県セッション</option>
+            <option value="dataset/region_sessions_alt.json">地方セッション</option>
+            <option value="dataset/prefecture_sessions_alt.json">都道府県セッション</option>
+            <option value="dataset/municipality_sessions_alt.json">市区町村セッション</option>
           </select>
         </td>
         <td>
@@ -145,9 +147,6 @@
         <td style="padding-left:10px;">
           <button id="plotTradeoff">Plot Tradeoff</button>
         </td>
-        <td style="padding-left:10px;">
-          <button id="animateWeight">Animate 0→1</button>
-        </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
             <input type="checkbox" id="bundleToggle" />
@@ -156,7 +155,7 @@
         </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
-            配置一貫性重み
+            配置一貫性重み α
             <input type="range" id="consistencyWeight" min="0" max="1" step="0.05" value="0" />
             <span id="consistencyWeightVal">0.00</span>
           </label>
@@ -167,8 +166,13 @@
       </tr>
     </table>
     <div style="font-size:12px;color:#666;margin-top:6px;">
-      上から全データセットを縦に積んで表示します（比較用）。切替はしません。
+      3粒度(地方/都道府県/市区町村)を同時に最適化します。α=0で交差数合計最小、α=1で連続スケール間の配置変化率最小を重視します。
     </div>
+  </div>
+
+  <div id="summary" class="panel">
+    <h3>総合指標</h3>
+    <div class="meta" id="summaryMetrics">交差数合計: - / 配置変化率平均(地方-県・県-市): -</div>
   </div>
 
   <div id="comparisons" class="panel">
@@ -187,10 +191,16 @@
     </table>
   </div>
 
-  <div id="tradeoff" class="panel">
-    <h3>トレードオフ（配置一貫性重み vs 指標）</h3>
+  <div id="tradeoff01" class="panel">
+    <h3>トレードオフ（地方 vs 都道府県）</h3>
     <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
-    <svg id="tradeoffChart"></svg>
+    <svg id="tradeoffChart01"></svg>
+  </div>
+
+  <div id="tradeoff12" class="panel">
+    <h3>トレードオフ（都道府県 vs 市区町村）</h3>
+    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
+    <svg id="tradeoffChart12"></svg>
   </div>
 
   <div id="canvases"></div>
@@ -262,14 +272,6 @@
       }
     };
 
-    var weightAnimation = {
-      timer: null,
-      timeout: null,
-      values: null,
-      index: 0,
-      delayMs: 10000
-    };
-
     $(document).ready(function () {
       $("#dataset").selectmenu({
         width: 230,
@@ -289,28 +291,21 @@
         renderAllDatasets();
       });
 
+      $("#plotTradeoff").button().on("click", function () {
+        renderTradeoffChart();
+      });
+
       $("#bundleToggle").on("change", function () {
         options.bundle.enabled = $(this).is(":checked");
         renderAllDatasets();
       });
 
-      $("#plotTradeoff").button().on("click", function () {
-        renderTradeoffChart();
-      });
-
-      $("#animateWeight").button().on("click", function () {
-        if (weightAnimation.timer) {
-          stopWeightAnimation();
-        } else {
-          startWeightAnimation();
-        }
-      });
-
       $("#consistencyWeight").on("input change", function () {
         var v = parseFloat($(this).val());
         if (!isFinite(v)) return;
-        stopWeightAnimation();
-        setConsistencyWeight(v);
+        options.algorithm.consistencyWeight = v;
+        $("#consistencyWeightVal").text(v.toFixed(2));
+        renderAllDatasets();
       });
 
       $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
@@ -321,54 +316,6 @@
         renderAllDatasets();
       }
     });
-
-    function setConsistencyWeight(value) {
-      var v = Math.max(0, Math.min(1, value));
-      options.algorithm.consistencyWeight = v;
-      $("#consistencyWeight").val(v);
-      $("#consistencyWeightVal").text(v.toFixed(2));
-      renderAllDatasets();
-    }
-
-    function buildWeightSteps() {
-      var steps = [];
-      for (var w = 0; w <= 1.0001; w += 0.1) {
-        steps.push(parseFloat(w.toFixed(2)));
-      }
-      return steps;
-    }
-
-    function startWeightAnimation() {
-      weightAnimation.values = buildWeightSteps();
-      weightAnimation.index = 0;
-      setConsistencyWeight(weightAnimation.values[0]);
-      $("#animateWeight").text("Stop Animation");
-      if (weightAnimation.timer) clearInterval(weightAnimation.timer);
-      if (weightAnimation.timeout) clearTimeout(weightAnimation.timeout);
-      weightAnimation.timeout = setTimeout(function () {
-        weightAnimation.timer = setInterval(function () {
-          var next = weightAnimation.index + 1;
-          if (next >= weightAnimation.values.length) {
-            stopWeightAnimation();
-            return;
-          }
-          weightAnimation.index = next;
-          setConsistencyWeight(weightAnimation.values[weightAnimation.index]);
-        }, 900);
-      }, weightAnimation.delayMs);
-    }
-
-    function stopWeightAnimation() {
-      if (weightAnimation.timeout) {
-        clearTimeout(weightAnimation.timeout);
-        weightAnimation.timeout = null;
-      }
-      if (weightAnimation.timer) {
-        clearInterval(weightAnimation.timer);
-        weightAnimation.timer = null;
-        $("#animateWeight").text("Animate 0→1");
-      }
-    }
 
     function ensureOSQPReady(cb) {
       if (osqpModule) {
@@ -432,6 +379,116 @@
       return { discordant: discordant, totalPairs: totalPairs, normalized: normalized, n: n };
     }
 
+    function computeKendallAvgBetween(aData, bData) {
+      if (!aData || !bData || !aData.d3 || !bData.d3) {
+        return { kendallAvg: null, overlap: 0 };
+      }
+
+      var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
+      var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
+
+      var sum = 0;
+      var count = 0;
+      for (var t = start; t < end; t++) {
+        var idxA = t - aData.d3.timeStart;
+        var idxB = t - bData.d3.timeStart;
+        var momentA = aData.d3.time[idxA];
+        var momentB = bData.d3.time[idxB];
+        if (!momentA || !momentB) continue;
+        if (!momentA.sortedCharacters || !momentB.sortedCharacters) continue;
+
+        var kd = kendallDistance(momentA.sortedCharacters, momentB.sortedCharacters);
+        if (kd.totalPairs === 0) continue;
+        sum += kd.normalized;
+        count++;
+      }
+
+      return { kendallAvg: count ? (sum / count) : null, overlap: count };
+    }
+
+    // Build a shared base order per frame from multiple layouts (Borda-like average rank).
+    function buildConsensusOrder(orders) {
+      var idSet = {};
+      orders.forEach(function (order) {
+        if (!order) return;
+        for (var i = 0; i < order.length; i++) idSet[order[i]] = true;
+      });
+
+      var ids = Object.keys(idSet).map(function (d) { return parseInt(d, 10); });
+      if (ids.length === 0) return [];
+
+      var ranks = orders.map(function (order) {
+        var rank = {};
+        if (!order) return rank;
+        for (var i = 0; i < order.length; i++) rank[order[i]] = i + 1;
+        return rank;
+      });
+
+      var scored = ids.map(function (id) {
+        var sum = 0;
+        var count = 0;
+        for (var i = 0; i < ranks.length; i++) {
+          if (ranks[i][id] !== undefined) {
+            sum += ranks[i][id];
+            count++;
+          }
+        }
+        var avg = count ? (sum / count) : 1e9;
+        return { id: id, avg: avg };
+      });
+
+      scored.sort(function (a, b) {
+        if (a.avg !== b.avg) return a.avg - b.avg;
+        return a.id - b.id;
+      });
+
+      return scored.map(function (d) { return d.id; });
+    }
+
+    function buildSharedBaseOrders(results) {
+      var datasets = results
+        .map(function (r) { return (r && r.data) ? r.data : null; })
+        .filter(function (d) { return !!d; });
+
+      if (datasets.length < 2) return null;
+
+      var timeStart = datasets[0].d3.timeStart;
+      var timeEnd = datasets[0].d3.timeEnd;
+      for (var i = 1; i < datasets.length; i++) {
+        timeStart = Math.max(timeStart, datasets[i].d3.timeStart);
+        timeEnd = Math.min(timeEnd, datasets[i].d3.timeEnd);
+      }
+
+      if (timeEnd <= timeStart) return null;
+
+      var orders = [];
+      for (var t = timeStart; t < timeEnd; t++) {
+        var frameOrders = [];
+        for (var j = 0; j < datasets.length; j++) {
+          var ds = datasets[j];
+          var idx = t - ds.d3.timeStart;
+          var moment = ds.d3.time[idx];
+          frameOrders.push(moment && moment.sortedCharacters ? moment.sortedCharacters : []);
+        }
+        orders.push(buildConsensusOrder(frameOrders));
+      }
+
+      return { orders: orders, timeStart: timeStart, timeEnd: timeEnd };
+    }
+
+    function buildBaseOrderOverrideForDataset(baseData, sharedOrders) {
+      if (!baseData || !sharedOrders || !baseData.d3) return null;
+      var override = new Array(baseData.d3.time.length);
+      for (var t = sharedOrders.timeStart; t < sharedOrders.timeEnd; t++) {
+        var idx = t - baseData.d3.timeStart;
+        var sidx = t - sharedOrders.timeStart;
+        if (idx >= 0 && idx < override.length && sharedOrders.orders[sidx]) {
+          override[idx] = sharedOrders.orders[sidx].slice();
+        }
+      }
+      return override;
+    }
+
     function computeCrossScaleComparisons(list) {
       var rows = [];
       for (var i = 0; i < list.length; i++) {
@@ -447,31 +504,14 @@
             ? bData.d3.metrics.crossingsTotal : null;
           var crossingsTotal = (cA !== null && cB !== null) ? (cA + cB) : null;
 
-          var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
-          var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
-
-          var sum = 0;
-          var count = 0;
-          for (var t = start; t < end; t++) {
-            var idxA = t - aData.d3.timeStart;
-            var idxB = t - bData.d3.timeStart;
-            var momentA = aData.d3.time[idxA];
-            var momentB = bData.d3.time[idxB];
-            if (!momentA || !momentB) continue;
-            if (!momentA.sortedCharacters || !momentB.sortedCharacters) continue;
-
-            var kd = kendallDistance(momentA.sortedCharacters, momentB.sortedCharacters);
-            if (kd.totalPairs === 0) continue;
-            sum += kd.normalized;
-            count++;
-          }
+          var pair = computeKendallAvgBetween(aData, bData);
 
           rows.push({
             aName: a.name,
             bName: b.name,
-            kendallAvg: count ? (sum / count) : null,
+            kendallAvg: pair.kendallAvg,
             crossingsTotal: crossingsTotal,
-            overlap: count
+            overlap: pair.overlap
           });
         }
       }
@@ -497,11 +537,60 @@
       d3.select("#comparisons").style("display", rows.length ? "block" : "none");
     }
 
+    function renderSummaryMetrics(results) {
+      var summary = d3.select("#summary");
+      var summaryText = d3.select("#summaryMetrics");
+      if (summary.empty() || summaryText.empty()) return;
+
+      if (!results || results.length < 3) {
+        summaryText.text("交差数合計: - / 配置変化率平均(地方-県・県-市): -");
+        summary.style("display", "block");
+        return;
+      }
+
+      var totalCross = 0;
+      var ok = true;
+      for (var i = 0; i < results.length; i++) {
+        var metrics = results[i] && results[i].data && results[i].data.d3 ? results[i].data.d3.metrics : null;
+        if (!metrics || typeof metrics.crossingsTotal !== "number") {
+          ok = false;
+          break;
+        }
+        totalCross += metrics.crossingsTotal;
+      }
+
+      var avgAdjacent = null;
+      if (ok) {
+        var sum = 0;
+        var count = 0;
+        for (var j = 0; j < results.length - 1; j++) {
+          var pair = computeKendallAvgBetween(results[j].data, results[j + 1].data);
+          if (pair.kendallAvg === null) {
+            ok = false;
+            break;
+          }
+          sum += pair.kendallAvg;
+          count++;
+        }
+        if (ok && count > 0) {
+          avgAdjacent = sum / count;
+        } else {
+          ok = false;
+        }
+      }
+
+      var crossText = ok ? totalCross : "-";
+      var avgText = ok ? avgAdjacent.toFixed(3) : "-";
+      summaryText.text("交差数合計: " + crossText + " / 配置変化率平均(地方-県・県-市): " + avgText);
+      summary.style("display", "block");
+    }
+
     function renderTradeoffChart() {
       var datasets = getDatasetListFromSelect();
       var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
       if (datasets.length < 2) {
-        d3.select("#tradeoffChart").html("");
+        d3.select("#tradeoffChart01").html("");
+        d3.select("#tradeoffChart12").html("");
         return;
       }
 
@@ -524,7 +613,6 @@
           localOptions.characters.toKeep = null;
           localOptions.algorithm.consistencyWeight = w;
           localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
-
           if (localOptions.bundle && localOptions.bundle.enabled) {
             localOptions.algorithm.din = 0;
           }
@@ -543,17 +631,18 @@
         return series;
       }
 
-      loadDataset(datasets[0], function (errA, jsonA) {
-        if (errA) {
-          drawTradeoffChart([]);
-          return;
-        }
-        loadDataset(datasets[1], function (errB, jsonB) {
-          if (errB) {
-            drawTradeoffChart([]);
+      function renderPair(idxA, idxB, svgId) {
+        loadDataset(datasets[idxA], function (errA, jsonA) {
+          if (errA) {
+            drawTradeoffChartTo([], svgId);
             return;
           }
-
+          loadDataset(datasets[idxB], function (errB, jsonB) {
+            if (errB) {
+              drawTradeoffChartTo([], svgId);
+              return;
+            }
+            
           // Build base order from dataset 1 (w=0) and reuse for both datasets.
           var seedSeries = buildSeries(jsonA, null);
           var baseOrders = [];
@@ -566,17 +655,25 @@
           var seriesA = buildSeries(jsonA, baseOrders);
           var seriesB = buildSeries(jsonB, baseOrders);
 
-          var results = [
-            { name: datasets[0].name, series: seriesA },
-            { name: datasets[1].name, series: seriesB }
-          ];
-          drawTradeoffChart(results);
+            var results = [
+              { name: datasets[idxA].name, series: seriesA },
+              { name: datasets[idxB].name, series: seriesB }
+            ];
+            drawTradeoffChartTo(results, svgId);
+          });
         });
-      });
+      }
+
+      renderPair(0, 1, "#tradeoffChart01");
+      if (datasets.length >= 3) {
+        renderPair(1, 2, "#tradeoffChart12");
+      } else {
+        d3.select("#tradeoffChart12").html("");
+      }
     }
 
-    function drawTradeoffChart(results) {
-      var svg = d3.select("#tradeoffChart");
+    function drawTradeoffChartTo(results, svgId) {
+      var svg = d3.select(svgId);
       svg.html("");
 
       var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
@@ -707,6 +804,7 @@
 
       var compRows = computeCrossScaleComparisons(comparisonItems);
       renderComparisonTable(compRows);
+      renderSummaryMetrics(results);
 
       d3.select("#canvases").html("");
       results.forEach(function (res, idx) {
@@ -752,11 +850,12 @@
       }
 
       var datasets = getDatasetListFromSelect();
-      var results = new Array(datasets.length);
+      var loaded = new Array(datasets.length);
       var remaining = datasets.length;
 
       if (remaining === 0) {
         renderComparisonTable([]);
+        renderSummaryMetrics([]);
         d3.select("#canvases").html("");
         return;
       }
@@ -765,31 +864,70 @@
         d3.json(dsInfo.path, function (error, json) {
           if (error) {
             console.error(error);
-            results[idx] = { info: dsInfo, error: true };
+            loaded[idx] = { info: dsInfo, error: true };
           } else {
             console.log("LOADED:", dsInfo.path, "keys=", Object.keys(json));
             console.log("HAS locationTree?", !!json.locationTree, json.locationTree);
-
-            var local = jQuery.extend(true, {}, json);
-            var localOptions = jQuery.extend(true, {}, options);
-            localOptions.characters.toKeep = null;
-
-            if (localOptions.bundle && localOptions.bundle.enabled) {
-              localOptions.algorithm.din = 0;
-            }
-
-            var annotated = annotateDataset(local, localOptions);
-            results[idx] = { info: dsInfo, data: annotated, options: localOptions, error: false };
+            loaded[idx] = { info: dsInfo, json: json, error: false };
           }
 
           remaining--;
-          if (remaining === 0) renderAllFromResults(results);
+          if (remaining === 0) {
+            var baseResults = new Array(loaded.length);
+            for (var i = 0; i < loaded.length; i++) {
+              if (!loaded[i] || loaded[i].error) {
+                baseResults[i] = { info: loaded[i] ? loaded[i].info : {}, error: true };
+                continue;
+              }
+
+              var baseLocal = jQuery.extend(true, {}, loaded[i].json);
+              var baseOptions = jQuery.extend(true, {}, options);
+              baseOptions.characters.toKeep = null;
+              baseOptions.algorithm.consistencyWeight = 0.0;
+              baseOptions.algorithm.baseOrderOverride = null;
+
+              if (baseOptions.bundle && baseOptions.bundle.enabled) {
+                baseOptions.algorithm.din = 0;
+              }
+
+              var baseAnnotated = annotateDataset(baseLocal, baseOptions);
+              baseResults[i] = { info: loaded[i].info, data: baseAnnotated, options: baseOptions, error: false };
+            }
+
+            var sharedOrders = buildSharedBaseOrders(baseResults);
+            var results = new Array(loaded.length);
+            for (var j = 0; j < loaded.length; j++) {
+              if (!loaded[j] || loaded[j].error) {
+                results[j] = { info: loaded[j] ? loaded[j].info : {}, error: true };
+                continue;
+              }
+
+              var local = jQuery.extend(true, {}, loaded[j].json);
+              var localOptions = jQuery.extend(true, {}, options);
+              localOptions.characters.toKeep = null;
+              if (sharedOrders && baseResults[j] && baseResults[j].data) {
+                localOptions.algorithm.baseOrderOverride = buildBaseOrderOverrideForDataset(baseResults[j].data, sharedOrders);
+              } else {
+                localOptions.algorithm.baseOrderOverride = null;
+              }
+
+              if (localOptions.bundle && localOptions.bundle.enabled) {
+                localOptions.algorithm.din = 0;
+              }
+
+              var annotated = annotateDataset(local, localOptions);
+              results[j] = { info: loaded[j].info, data: annotated, options: localOptions, error: false };
+            }
+
+            renderAllFromResults(results);
+          }
         });
       });
     }
 
     function drawStoryFlow(dataset, options, svg, idPrefix) {
       idPrefix = idPrefix || "";
+
       var characterColors = dataset.characters.length <= 10 ? d3.scale.category10() : d3.scale.category20();
       var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
 
@@ -1360,6 +1498,7 @@
         setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
         setCharacterLinesAttributes(lines.enter().append("path"))
           .on("click", function (d) {
+
             toggleCharacterHighlight(d);
 
             d3.select(this)

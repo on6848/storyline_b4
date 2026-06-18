@@ -11,7 +11,6 @@
   <script type="text/javascript" src="lib/jquery-ui-1.11.4/external/jquery/jquery.js"></script>
   <script type="text/javascript" src="lib/jquery-ui-1.11.4/jquery-ui.min.js"></script>
   <script type="text/javascript" src="lib/jquery.sumoselect/jquery.sumoselect.js"></script>
-  <script type="text/javascript" src="lib/jquery.sumoselect/jquery.sumoselect.js"></script>
   <script type="text/javascript" src="lib/osqp/osqp.js"></script>
 
   <style>
@@ -64,6 +63,15 @@
       font-size: 10px;
       fill: #666;
     }
+
+    .timeGrid path {
+      display: none;
+    }
+
+    .timeGrid line {
+      stroke: #eee;
+    }
+
 
     #comparisons table {
       width: 100%;
@@ -146,13 +154,13 @@
         </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
-            配置一貫性維持率
+            配置一貫性重み
             <input type="range" id="consistencyWeight" min="0" max="1" step="0.05" value="0" />
             <span id="consistencyWeightVal">0.00</span>
           </label>
         </td>
-        <td style="padding-left:12px; font-size:12px; color:#444;">
-          Shift+クリックで直線化を切替
+        <td style="padding-left:12px; font-size:12px;">
+          <a href="index_extra.html">交差多めの別ページ</a>
         </td>
       </tr>
     </table>
@@ -168,7 +176,8 @@
       <thead>
         <tr>
           <th>比較ペア</th>
-          <th>Kendall(平均)</th>
+          <th>配置変化率(Kendall平均)</th>
+          <th>交差数合計(2レイアウト)</th>
           <th>重なりフレーム数</th>
         </tr>
       </thead>
@@ -177,8 +186,8 @@
   </div>
 
   <div id="tradeoff" class="panel">
-    <h3>トレードオフ（配置一貫性維持率 vs 指標）</h3>
-    <div class="meta">横軸: 配置一貫性維持率 / 縦軸: 交差数(平均)・Kendall(平均)</div>
+    <h3>トレードオフ（配置一貫性重み vs 指標）</h3>
+    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
     <svg id="tradeoffChart"></svg>
   </div>
 
@@ -202,8 +211,7 @@
         highlightStrokeWidth: 8,
         highlightDuration: 300,
         nonHighlightedOpacity: 0.2,
-        toKeep: null,
-        straightenIds: []
+        toKeep: null
       },
       locations: {
         interpolation: "monotone",
@@ -368,6 +376,12 @@
           var aData = a.data;
           var bData = b.data;
 
+          var cA = (aData && aData.d3 && aData.d3.metrics && typeof aData.d3.metrics.crossingsTotal === "number")
+            ? aData.d3.metrics.crossingsTotal : null;
+          var cB = (bData && bData.d3 && bData.d3.metrics && typeof bData.d3.metrics.crossingsTotal === "number")
+            ? bData.d3.metrics.crossingsTotal : null;
+          var crossingsTotal = (cA !== null && cB !== null) ? (cA + cB) : null;
+
           var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
           var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
 
@@ -391,6 +405,7 @@
             aName: a.name,
             bName: b.name,
             kendallAvg: count ? (sum / count) : null,
+            crossingsTotal: crossingsTotal,
             overlap: count
           });
         }
@@ -406,8 +421,10 @@
       sel.enter().append("tr");
       sel.html(function (d) {
         var kText = (d.kendallAvg === null) ? "-" : d.kendallAvg.toFixed(3);
+        var cText = (d.crossingsTotal === null || d.crossingsTotal === undefined) ? "-" : d.crossingsTotal;
         return "<td>" + d.aName + " × " + d.bName + "</td>" +
           "<td>" + kText + "</td>" +
+          "<td>" + cText + "</td>" +
           "<td>" + d.overlap + "</td>";
       });
       sel.exit().remove();
@@ -418,48 +435,77 @@
     function renderTradeoffChart() {
       var datasets = getDatasetListFromSelect();
       var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-      var results = [];
-      var remaining = datasets.length;
-
-      if (remaining === 0) {
+      if (datasets.length < 2) {
         d3.select("#tradeoffChart").html("");
         return;
       }
 
-      datasets.forEach(function (dsInfo, idx) {
+      function loadDataset(dsInfo, cb) {
         d3.json(dsInfo.path, function (error, json) {
           if (error) {
             console.error(error);
-            remaining--;
-            if (remaining === 0) drawTradeoffChart(results);
+            cb(error);
+            return;
+          }
+          cb(null, json);
+        });
+      }
+
+      function buildSeries(json, baseOrderOverride) {
+        var series = [];
+        weights.forEach(function (w) {
+          var local = jQuery.extend(true, {}, json);
+          var localOptions = jQuery.extend(true, {}, options);
+          localOptions.characters.toKeep = null;
+          localOptions.algorithm.consistencyWeight = w;
+          localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
+          if (localOptions.bundle && localOptions.bundle.enabled) {
+            localOptions.algorithm.din = 0;
+          }
+
+          var annotated = annotateDataset(local, localOptions);
+          var metrics = annotated && annotated.d3 ? annotated.d3.metrics : null;
+          if (metrics) {
+            series.push({
+              w: w,
+              crossingsAvg: metrics.crossingsAvg,
+              kendallAvg: metrics.kendallAvg,
+              data: annotated
+            });
+          }
+        });
+        return series;
+      }
+
+      loadDataset(datasets[0], function (errA, jsonA) {
+        if (errA) {
+          drawTradeoffChart([]);
+          return;
+        }
+        loadDataset(datasets[1], function (errB, jsonB) {
+          if (errB) {
+            drawTradeoffChart([]);
             return;
           }
 
-          var series = [];
-          weights.forEach(function (w) {
-            var local = jQuery.extend(true, {}, json);
-            var localOptions = jQuery.extend(true, {}, options);
-            localOptions.characters.toKeep = null;
-            localOptions.algorithm.consistencyWeight = w;
+          
+          // Build base order from dataset 1 (w=0) and reuse for both datasets.
+          var seedSeries = buildSeries(jsonA, null);
+          var baseOrders = [];
+          if (seedSeries.length > 0 && seedSeries[0].data && seedSeries[0].data.d3) {
+            baseOrders = seedSeries[0].data.d3.time.map(function (m) {
+              return (m.d3 && m.d3.baseOrder) ? m.d3.baseOrder.slice() : null;
+            });
+          }
 
-            if (localOptions.bundle && localOptions.bundle.enabled) {
-              localOptions.algorithm.din = 0;
-            }
+          var seriesA = buildSeries(jsonA, baseOrders);
+          var seriesB = buildSeries(jsonB, baseOrders);
 
-            var annotated = annotateDataset(local, localOptions);
-            var metrics = annotated && annotated.d3 ? annotated.d3.metrics : null;
-            if (metrics) {
-              series.push({
-                w: w,
-                crossingsAvg: metrics.crossingsAvg,
-                kendallAvg: metrics.kendallAvg
-              });
-            }
-          });
-
-          results[idx] = { name: dsInfo.name, series: series };
-          remaining--;
-          if (remaining === 0) drawTradeoffChart(results);
+          var results = [
+            { name: datasets[0].name, series: seriesA },
+            { name: datasets[1].name, series: seriesB }
+          ];
+          drawTradeoffChart(results);
         });
       });
     }
@@ -469,7 +515,39 @@
       svg.html("");
 
       var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
-      if (valid.length === 0) return;
+      if (valid.length < 2) return;
+
+      var paired = [];
+      var len = Math.min(valid[0].series.length, valid[1].series.length);
+      for (var i = 0; i < len; i++) {
+        var a = valid[0].series[i];
+        var b = valid[1].series[i];
+        if (a.w !== b.w) continue;
+
+        var start = Math.max(a.data.d3.timeStart, b.data.d3.timeStart);
+        var end = Math.min(a.data.d3.timeEnd, b.data.d3.timeEnd);
+
+        var sum = 0;
+        var count = 0;
+        for (var t = start; t < end; t++) {
+          var ia = t - a.data.d3.timeStart;
+          var ib = t - b.data.d3.timeStart;
+          var ma = a.data.d3.time[ia];
+          var mb = b.data.d3.time[ib];
+          if (!ma || !mb || !ma.sortedCharacters || !mb.sortedCharacters) continue;
+          var kd = kendallDistance(ma.sortedCharacters, mb.sortedCharacters);
+          if (kd.totalPairs === 0) continue;
+          sum += kd.normalized;
+          count++;
+        }
+
+        var kAvg = count ? (sum / count) : 0;
+        var cTotal = (a.data.d3 && a.data.d3.metrics ? a.data.d3.metrics.crossingsTotal : 0) +
+          (b.data.d3 && b.data.d3.metrics ? b.data.d3.metrics.crossingsTotal : 0);
+        paired.push({ w: a.w, crossingsTotal: cTotal, kendallAvg: kAvg });
+      }
+
+      if (paired.length === 0) return;
 
       var width = 900;
       var height = 260;
@@ -479,13 +557,14 @@
 
       svg.attr("width", width).attr("height", height);
 
-      var maxCross = d3.max(valid, function (d) {
-        return d3.max(d.series, function (s) { return s.crossingsAvg; });
-      }) || 1;
+      var maxCross = d3.max(paired, function (d) { return d.crossingsTotal; }) || 1;
+      paired.forEach(function (d) {
+        d.crossingsNorm = maxCross ? (d.crossingsTotal / maxCross) : 0;
+      });
 
       var x = d3.scale.linear().domain([0, 1]).range([0, innerW]);
-      var yCross = d3.scale.linear().domain([0, maxCross]).range([innerH, 0]);
       var yKen = d3.scale.linear().domain([0, 1]).range([innerH, 0]);
+      var yCross = yKen;
 
       var g = svg.append("g")
         .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
@@ -510,54 +589,46 @@
 
       var lineCross = d3.svg.line()
         .x(function (d) { return x(d.w); })
-        .y(function (d) { return yCross(d.crossingsAvg); });
+        .y(function (d) { return yCross(d.crossingsNorm); });
 
       var lineKen = d3.svg.line()
         .x(function (d) { return x(d.w); })
         .y(function (d) { return yKen(d.kendallAvg); });
 
-      var color = d3.scale.category10();
-      valid.forEach(function (d, i) {
-        var c = color(i);
-        g.append("path")
-          .datum(d.series)
-          .attr("class", "tradeoffLine")
-          .attr("stroke", c)
-          .attr("d", lineCross);
+      g.append("path")
+        .datum(paired)
+        .attr("class", "tradeoffLine")
+        .attr("stroke", "#333")
+        .attr("d", lineCross);
 
-        g.append("path")
-          .datum(d.series)
-          .attr("class", "tradeoffLine")
-          .attr("stroke", c)
-          .attr("stroke-dasharray", "5,3")
-          .attr("d", lineKen);
-      });
+      g.append("path")
+        .datum(paired)
+        .attr("class", "tradeoffLine")
+        .attr("stroke", "#1f77b4")
+        .attr("stroke-dasharray", "5,3")
+        .attr("d", lineKen);
 
       var legend = g.append("g").attr("transform", "translate(0,-4)");
-      valid.forEach(function (d, i) {
-        var c = color(i);
-        var y0 = i * 14;
-        legend.append("line")
-          .attr("x1", 0).attr("x2", 16)
-          .attr("y1", y0).attr("y2", y0)
-          .attr("stroke", c)
-          .attr("stroke-width", 2);
-        legend.append("text")
-          .attr("x", 20).attr("y", y0 + 3)
-          .style("font-size", "10px")
-          .text(d.name + " (crossings)");
+      legend.append("line")
+        .attr("x1", 0).attr("x2", 16)
+        .attr("y1", 0).attr("y2", 0)
+        .attr("stroke", "#333")
+        .attr("stroke-width", 2);
+      legend.append("text")
+        .attr("x", 20).attr("y", 3)
+        .style("font-size", "10px")
+        .text("crossings (normalized)");
 
-        legend.append("line")
-          .attr("x1", 150).attr("x2", 166)
-          .attr("y1", y0).attr("y2", y0)
-          .attr("stroke", c)
-          .attr("stroke-width", 2)
-          .attr("stroke-dasharray", "5,3");
-        legend.append("text")
-          .attr("x", 170).attr("y", y0 + 3)
-          .style("font-size", "10px")
-          .text(d.name + " (kendall)");
-      });
+      legend.append("line")
+        .attr("x1", 180).attr("x2", 196)
+        .attr("y1", 0).attr("y2", 0)
+        .attr("stroke", "#1f77b4")
+        .attr("stroke-width", 2)
+        .attr("stroke-dasharray", "5,3");
+      legend.append("text")
+        .attr("x", 200).attr("y", 3)
+        .style("font-size", "10px")
+        .text("kendall (between 2 datasets)");
     }
 
     function renderAllFromResults(results) {
@@ -654,35 +725,6 @@
 
     function drawStoryFlow(dataset, options, svg, idPrefix) {
       idPrefix = idPrefix || "";
-      function isStraightenedId(cid) {
-        return options.characters.straightenIds &&
-          options.characters.straightenIds.indexOf(cid) !== -1;
-      }
-
-      // ---- 追加：地域（階層）判定と「帯の色」決定 ----
-      function regionOfLocationName(name) {
-        // your datasets: "Aomori (Tohoku)" / "Tokyo (Kanto)" を想定
-        if (!name) return null;
-        if (name.indexOf("(Tohoku)") !== -1 || name.indexOf("Tohoku") !== -1 || name.indexOf("東北") !== -1) return "TOHOKU";
-        if (name.indexOf("(Kanto)") !== -1 || name.indexOf("Kanto") !== -1 || name.indexOf("関東") !== -1) return "KANTO";
-        return null;
-      }
-
-      // 県ごとの差は「同じ系統色の中で明度だけズラす」
-      // ※ splitで複製されても d.name は同じなので色は保たれる
-      function bandFillColorByHierarchy(locationObj) {
-        var region = regionOfLocationName(locationObj.name);
-        if (!region) return locationObj.d3.color; // フォールバック：従来どおり
-
-        // 0.40〜0.62 くらいで明度を揺らす（同地域内で見分け用）
-        var seed = (locationObj.id || 0) % 6;          // 0..5
-        var light = 0.42 + seed * 0.04;                // 0.42..0.62
-
-        // 東北=青系(約210度) / 関東=赤系(約0度)
-        var hue = (region === "TOHOKU") ? 210 : 0;
-        return d3.hsl(hue, 0.65, light).toString();
-      }
-      // ---- /追加 ----
 
       var characterColors = dataset.characters.length <= 10 ? d3.scale.category10() : d3.scale.category20();
       var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
@@ -707,13 +749,44 @@
         return;
       }
 
+      var axisPadding = 32;
+      var axisY = options.svg.height - 16;
+      var plotHeight = axisY - options.svg.topPadding;
+
       var verticalScale = d3.scale.linear()
         .domain([0, maxCharacters])
-        .range([options.svg.topPadding, options.svg.height - 10]);
+        .range([options.svg.topPadding, options.svg.height - axisPadding]);
 
       var horizontalScale = d3.scale.linear()
         .domain([0, dataset.d3.time.length])
         .range([0, options.svg.width]);
+
+      var timeTicks = d3.range(0, dataset.d3.time.length + 1);
+      var timeAxis = d3.svg.axis()
+        .scale(horizontalScale)
+        .orient("bottom")
+        .tickValues(timeTicks)
+        .tickFormat(function (d) {
+          return dataset.d3.timeStart + d;
+        });
+
+      var timeGrid = d3.svg.axis()
+        .scale(horizontalScale)
+        .orient("bottom")
+        .tickValues(timeTicks)
+        .tickSize(-plotHeight, 0)
+        .tickFormat("");
+
+      svg.selectAll(".timeAxis").remove();
+      svg.selectAll(".timeGrid").remove();
+      svg.append("g")
+        .attr("class", "axis timeGrid")
+        .attr("transform", "translate(0," + axisY + ")")
+        .call(timeGrid);
+      svg.append("g")
+        .attr("class", "axis timeAxis")
+        .attr("transform", "translate(0," + axisY + ")")
+        .call(timeAxis);
 
       // =========================
       // QP y -> screen y transform
@@ -1075,8 +1148,7 @@
           .attr("id", function (d) { return idPrefix + options.locations.class + d.id; })
           .attr("class", options.locations.class)
           .attr("d", function (d) { return locationArea(d.d3.points); })
-          // ★ここが変更：帯は階層色（東北=青系、関東=赤系）
-          .attr("fill", function (d) { return bandFillColorByHierarchy(d); })
+          .attr("fill", function (d) { return d.d3.color; })
           .attr("opacity", options.locations.opacity);
       }
 
@@ -1216,9 +1288,6 @@
           .attr("fill", "none")
           .attr("stroke", function (d) { return d.d3.color; })
           .attr("stroke-width", options.characters.strokeWidth)
-          .attr("stroke-dasharray", function (d) {
-            return isStraightenedId(d.id) ? "4,3" : null;
-          })
           .style('opacity', 1.0);
       }
 
@@ -1227,14 +1296,6 @@
         setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
         setCharacterLinesAttributes(lines.enter().append("path"))
           .on("click", function (d) {
-            if (d3.event && d3.event.shiftKey) {
-              var idx = options.characters.straightenIds.indexOf(d.id);
-              if (idx === -1) options.characters.straightenIds.push(d.id);
-              else options.characters.straightenIds.splice(idx, 1);
-              renderAllDatasets();
-              d3.event.stopPropagation();
-              return;
-            }
 
             toggleCharacterHighlight(d);
 
@@ -1469,17 +1530,34 @@
         return rank;
       }
 
+      function buildBaseRank(baseOrder) {
+        var rank = {};
+        if (!baseOrder) return rank;
+        for (var i = 0; i < baseOrder.length; ++i) {
+          rank[baseOrder[i]] = i + 1;
+        }
+        return rank;
+      }
+
       // node.weight を bottom-up で計算
       // entity: ref rank (無ければ大きい値)
       // session: children平均
       // location/root: children平均（※location自体は固定順なので、重みは主に親側集約用）
-      function computeWeightsBottomUp(node, refRank, fallbackWeight, prevWeightByChar, options) {
+      function computeWeightsBottomUp(node, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options) {
         if (!node) return fallbackWeight;
+
+        function blendRank(refVal, baseVal) {
+          if (refVal === undefined && baseVal === undefined) return fallbackWeight;
+          if (refVal === undefined) return baseVal;
+          if (baseVal === undefined) return refVal;
+          var w = (typeof consistencyWeight === "number") ? consistencyWeight : 0.0;
+          return (1.0 - w) * refVal + w * baseVal;
+        }
 
         if (node.type === "entity") {
           // 参照にあればそれを使う
-          if (refRank[node.id] !== undefined) {
-            node.weight = refRank[node.id];
+          if (refRank[node.id] !== undefined || baseRank[node.id] !== undefined) {
+            node.weight = blendRank(refRank[node.id], baseRank[node.id]);
             return node.weight;
           }
 
@@ -1509,7 +1587,7 @@
         var sum = 0;
         var cnt = 0;
         for (var i = 0; i < children.length; ++i) {
-          sum += computeWeightsBottomUp(children[i], refRank, fallbackWeight, prevWeightByChar, options);
+          sum += computeWeightsBottomUp(children[i], refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
           cnt++;
         }
 
@@ -1745,11 +1823,15 @@
         // 参照順位
         var refRank = buildRefRank(referenceSortedCharacters);
         var fallbackWeight = referenceSortedCharacters.length + 9999;
+        var baseRank = buildBaseRank(moment.d3 ? moment.d3.baseOrder : null);
+        var consistencyWeight = (options.algorithm && typeof options.algorithm.consistencyWeight === "number")
+          ? options.algorithm.consistencyWeight
+          : 0.0;
 
         // ★追加：前回の重み（この moment 自身が持つ）
         var prevWeightByChar = (moment.d3 && moment.d3.weightByChar) ? moment.d3.weightByChar : {};
 
-        computeWeightsBottomUp(moment.relationshipRoot, refRank, fallbackWeight, prevWeightByChar, options);
+        computeWeightsBottomUp(moment.relationshipRoot, refRank, baseRank, consistencyWeight, fallbackWeight, prevWeightByChar, options);
 
         // 1) locationTree順固定（論文の location ordering 結果）
         var locRank = (moment.d3 && moment.d3.locRank) ? moment.d3.locRank : null;
@@ -2129,6 +2211,15 @@
 
         // デバッグ用（増えてるか確認）
         // console.log("[annotate] pushed time=", time, "frames now=", dataset.d3.time.length);
+      }
+
+      if (options.algorithm && options.algorithm.baseOrderOverride) {
+        var bo = options.algorithm.baseOrderOverride;
+        for (var tbo = 0; tbo < dataset.d3.time.length; tbo++) {
+          if (bo && bo[tbo]) {
+            dataset.d3.time[tbo].d3.baseOrder = bo[tbo].slice();
+          }
+        }
       }
 
       function computeRealizationMatrix(referenceMoment, currentMoment) {
@@ -2690,20 +2781,6 @@
           }
         }
 
-        // Straighten constraints: y(cid,t+1) - y(cid,t) = 0 for selected ids
-        var straightIds = (options.characters && options.characters.straightenIds) || [];
-        if (straightIds.length > 0) {
-          for (var si = 0; si < straightIds.length; si++) {
-            var scid = straightIds[si];
-            addRow(
-              [varIx.idx(scid, t2 + 1), varIx.idx(scid, t2)],
-              [1, -1],
-              0,
-              0
-            );
-          }
-        }
-
         // (5c) din in-session: y(next,t) - y(prev,t) = din
         // (5d) dout between sessions: y(lower,t)-y(upper,t) >= dout on boundaries
         for (var t3 = 0; t3 < nTimes; t3++) {
@@ -2797,24 +2874,6 @@
           for (var s = 0; s < segs.length; s++) {
             var cid = segs[s].cid;
             x[varIx.idx(cid, t2 + 1)] = x[varIx.idx(cid, t2)];
-          }
-        }
-
-        // enforce straightened ids in init by copying first valid y forward
-        var straightIds = (options.characters && options.characters.straightenIds) || [];
-        if (straightIds.length > 0) {
-          for (var si = 0; si < straightIds.length; si++) {
-            var scid = straightIds[si];
-            var base = null;
-            for (var t3 = 0; t3 < nTimes; t3++) {
-              var v = x[varIx.idx(scid, t3)];
-              if (isFinite(v)) { base = v; break; }
-            }
-            if (base != null) {
-              for (var t4 = 0; t4 < nTimes; t4++) {
-                x[varIx.idx(scid, t4)] = base;
-              }
-            }
           }
         }
 
@@ -3194,9 +3253,6 @@
           "maxAlignedSegments=", maxSegs, "at t=", maxT);
       })();
       // ---- /debug ----
-
-      // ---- run QP compaction on bestDataset (after alignment) ----
-      runCompactionQP(bestDataset, options);
 
       function countCrossingsAll(ds) {
         var total = 0;

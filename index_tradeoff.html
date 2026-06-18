@@ -3,7 +3,7 @@
 
 <head lang="en">
   <meta charset="UTF-8">
-  <title>StoryFlow: Tracking the Evolution of Stories</title>
+  <title>StoryFlow: Tradeoff Demo</title>
   <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
   <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
 
@@ -72,6 +72,7 @@
       stroke: #eee;
     }
 
+
     #comparisons table {
       width: 100%;
       border-collapse: collapse;
@@ -123,8 +124,10 @@
       <tr>
         <td>
           <select name="dataset" id="dataset">
-            <option value="dataset/municipality_sessions.json">市区町村セッション</option>
-            <option value="dataset/prefecture_sessions.json">都道府県セッション</option>
+            <option value="dataset/municipality_sessions_tradeoff.json">市区町村セッション（トレードオフ）</option>
+            <option value="dataset/prefecture_sessions_tradeoff.json">都道府県セッション（トレードオフ）</option>
+            <option value="dataset/municipality_sessions_tradeoff_strong.json">市区町村セッション（トレードオフ強）</option>
+            <option value="dataset/prefecture_sessions_tradeoff_strong.json">都道府県セッション（トレードオフ強）</option>
           </select>
         </td>
         <td>
@@ -144,9 +147,6 @@
         </td>
         <td style="padding-left:10px;">
           <button id="plotTradeoff">Plot Tradeoff</button>
-        </td>
-        <td style="padding-left:10px;">
-          <button id="animateWeight">Animate 0→1</button>
         </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
@@ -262,14 +262,6 @@
       }
     };
 
-    var weightAnimation = {
-      timer: null,
-      timeout: null,
-      values: null,
-      index: 0,
-      delayMs: 10000
-    };
-
     $(document).ready(function () {
       $("#dataset").selectmenu({
         width: 230,
@@ -298,19 +290,12 @@
         renderTradeoffChart();
       });
 
-      $("#animateWeight").button().on("click", function () {
-        if (weightAnimation.timer) {
-          stopWeightAnimation();
-        } else {
-          startWeightAnimation();
-        }
-      });
-
       $("#consistencyWeight").on("input change", function () {
         var v = parseFloat($(this).val());
         if (!isFinite(v)) return;
-        stopWeightAnimation();
-        setConsistencyWeight(v);
+        options.algorithm.consistencyWeight = v;
+        $("#consistencyWeightVal").text(v.toFixed(2));
+        renderAllDatasets();
       });
 
       $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
@@ -321,54 +306,6 @@
         renderAllDatasets();
       }
     });
-
-    function setConsistencyWeight(value) {
-      var v = Math.max(0, Math.min(1, value));
-      options.algorithm.consistencyWeight = v;
-      $("#consistencyWeight").val(v);
-      $("#consistencyWeightVal").text(v.toFixed(2));
-      renderAllDatasets();
-    }
-
-    function buildWeightSteps() {
-      var steps = [];
-      for (var w = 0; w <= 1.0001; w += 0.1) {
-        steps.push(parseFloat(w.toFixed(2)));
-      }
-      return steps;
-    }
-
-    function startWeightAnimation() {
-      weightAnimation.values = buildWeightSteps();
-      weightAnimation.index = 0;
-      setConsistencyWeight(weightAnimation.values[0]);
-      $("#animateWeight").text("Stop Animation");
-      if (weightAnimation.timer) clearInterval(weightAnimation.timer);
-      if (weightAnimation.timeout) clearTimeout(weightAnimation.timeout);
-      weightAnimation.timeout = setTimeout(function () {
-        weightAnimation.timer = setInterval(function () {
-          var next = weightAnimation.index + 1;
-          if (next >= weightAnimation.values.length) {
-            stopWeightAnimation();
-            return;
-          }
-          weightAnimation.index = next;
-          setConsistencyWeight(weightAnimation.values[weightAnimation.index]);
-        }, 900);
-      }, weightAnimation.delayMs);
-    }
-
-    function stopWeightAnimation() {
-      if (weightAnimation.timeout) {
-        clearTimeout(weightAnimation.timeout);
-        weightAnimation.timeout = null;
-      }
-      if (weightAnimation.timer) {
-        clearInterval(weightAnimation.timer);
-        weightAnimation.timer = null;
-        $("#animateWeight").text("Animate 0→1");
-      }
-    }
 
     function ensureOSQPReady(cb) {
       if (osqpModule) {
@@ -524,7 +461,6 @@
           localOptions.characters.toKeep = null;
           localOptions.algorithm.consistencyWeight = w;
           localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
-
           if (localOptions.bundle && localOptions.bundle.enabled) {
             localOptions.algorithm.din = 0;
           }
@@ -554,6 +490,7 @@
             return;
           }
 
+          
           // Build base order from dataset 1 (w=0) and reuse for both datasets.
           var seedSeries = buildSeries(jsonA, null);
           var baseOrders = [];
@@ -790,6 +727,7 @@
 
     function drawStoryFlow(dataset, options, svg, idPrefix) {
       idPrefix = idPrefix || "";
+
       var characterColors = dataset.characters.length <= 10 ? d3.scale.category10() : d3.scale.category20();
       var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
 
@@ -1360,6 +1298,7 @@
         setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
         setCharacterLinesAttributes(lines.enter().append("path"))
           .on("click", function (d) {
+
             toggleCharacterHighlight(d);
 
             d3.select(this)
