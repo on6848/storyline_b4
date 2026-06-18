@@ -35,6 +35,12 @@
 1. リポジトリをクローンまたはダウンロードする
 2. ブラウザでルートの `index.html` または `index_region_alpha_demo.html` などを開く
 
+### 公開デモ
+
+- 実際のデモページ: https://on6848.github.io/storyline_b4/index_region_alpha_demo.html
+
+上記リンクを開くと `index_region_alpha_demo.html` が実行され、閲覧者は可視化ページを直接体験できます。
+
 > ローカルファイルから開いた場合、ブラウザのセキュリティ制限で読み込みが失敗する場合があります。必要に応じて簡易HTTPサーバーを立ててください。
 
 ```bash
