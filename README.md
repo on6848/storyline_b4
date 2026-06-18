@@ -1,8 +1,8 @@
-# storyflow-d3
+# storyline-b4
 
 ## 概要
 
-`storyflow-d3`は、論文「[StoryFlow: Tracking the Evolution of Stories](http://research.microsoft.com/en-us/um/people/yangliu/publication/storyflow.pdf)」で提案されたストーリーライン可視化アルゴリズムをベースに、[D3.js](http://d3js.org/)で再実装・改変したリポジトリです。
+`storyline-b4`は、論文「[StoryFlow: Tracking the Evolution of Stories](http://research.microsoft.com/en-us/um/people/yangliu/publication/storyflow.pdf)」で提案されたストーリーライン可視化アルゴリズムをベースに、[D3.js](http://d3js.org/)で再実装・改変したリポジトリです。
 
 本研究では、StoryFlowのレイアウト生成手法を一部改変し、既存手法の構造を維持しながら新しいレイアウト作成プロセスを検証しています。
 
@@ -38,7 +38,7 @@
 
 - 実際のデモページ: https://on6848.github.io/storyline_b4/index_region_alpha_demo.html
 
-このリンクを開くと `index_region_alpha_demo.html` が実行され、閲覧者が直接可視化を体験できます。
+このリンクを開くと `index_region_alpha_demo.html` が実行され、実際の可視化アプリケーションを体験できます
 
 ## 動作確認方法
 
