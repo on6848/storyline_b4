@@ -1,10 +1,12 @@
-# storyflow-b4
+# storyflow-d3
 
 ## 概要
 
-`storyflow-b4`は、論文「[StoryFlow: Tracking the Evolution of Stories](http://research.microsoft.com/en-us/um/people/yangliu/publication/storyflow.pdf)」で提案されたストーリーライン可視化アルゴリズムの一部を、[D3.js](http://d3js.org/)で実装したリポジトリです。
+`storyflow-d3`は、論文「[StoryFlow: Tracking the Evolution of Stories](http://research.microsoft.com/en-us/um/people/yangliu/publication/storyflow.pdf)」で提案されたストーリーライン可視化アルゴリズムをベースに、[D3.js](http://d3js.org/)で再実装・改変したリポジトリです。
 
-このプロジェクトは、ストーリーの登場人物やトピックの時間推移を視覚的に追跡するための手法としてStoryFlowを学び、研究や発表用に再現したものです。
+本研究では、StoryFlowのレイアウト生成手法を一部改変し、既存手法の構造を維持しながら新しいレイアウト作成プロセスを検証しています。
+
+このリポジトリには、元となる `storyflow-d3` のコードを改変した部分が含まれています。オリジナルの `storyflow-d3` に起源を持つコードについては、元作者の権利が残る場合があります。
 
 ## 目的
 
@@ -50,6 +52,8 @@ python3 -m http.server 8000
 ## 研究・発表用途
 
 このリポジトリは、可視化手法の実装例として研究成果や発表資料に利用できます。論文やレポートに組み込む際は、オリジナルのStoryFlow論文とデータの出典を明示してください。
+
+- 本研究の成果は `paper.pdf` にまとめられています。
 
 ## ライセンス
 
