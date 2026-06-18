@@ -26,20 +26,6 @@
 
 このリンクを開くと `index_region_alpha_demo.html` が実行され、閲覧者が直接可視化を体験できます。
 
-## 含まれるファイル
-
-- `index.html` - 基本的なStoryFlowデモ
-- `index_region.html` - 地方スケールのStoryFlowレイアウト
-- `index_region_alpha_demo.html` - スケール間比較とトレードオフを示すαデモ
-- `index_region_alt.html` - 地方レイアウトの別バリエーション
-- `index_tradeoff.html` - パラメータによる交差数・安定性のトレードオフ検証
-- `index_tradeoff_strong.html` - 強調したトレードオフ検証デモ
-- `index_extra.html` - 交差を多く含む別ページ
-- `dataset/` - 利用した元データと変換済みデータ
-- `lib/` - 可視化用ライブラリ/コード
-- `osqp/` - 最適化ライブラリ関連
-- `a.json` - 追加のデータまたは設定ファイル
-
 ## 動作確認方法
 
 ### 公開ページで見る
@@ -88,6 +74,20 @@ python3 -m http.server 8000
   - `配置一貫性重み` を変化させたときの、交差数と配置変化率の関係を可視化します
 - 中央のキャンバス領域
   - ストーリーラインの線やラベルを時間軸に沿って配置し、データの変化とレイアウトの違いを直感的に示します
+
+## 含まれるファイル
+
+- `index.html` - 基本的なStoryFlowデモ
+- `index_region.html` - 地方スケールのStoryFlowレイアウト
+- `index_region_alpha_demo.html` - スケール間比較とトレードオフを示すαデモ
+- `index_region_alt.html` - 地方レイアウトの別バリエーション
+- `index_tradeoff.html` - パラメータによる交差数・安定性のトレードオフ検証
+- `index_tradeoff_strong.html` - 強調したトレードオフ検証デモ
+- `index_extra.html` - 交差を多く含む別ページ
+- `dataset/` - 利用した元データと変換済みデータ
+- `lib/` - 可視化用ライブラリ/コード
+- `osqp/` - 最適化ライブラリ関連
+- `a.json` - 追加のデータまたは設定ファイル
 
 ## 各デモの目的
 
