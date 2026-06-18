@@ -20,35 +20,91 @@
 - Tanahashi氏公開のストーリーデータをJSONに変換して利用
 - 複数のデモHTMLファイルを含み、異なる可視化パラメータやレイアウトを確認可能
 
-## 含まれるファイル
-
-- `index.html` - 基本的なStoryFlowデモ
-- `index_region.html` / `index_region_alpha_demo.html` / `index_region_alt.html` - 領域配置や透明度に関するデモ
-- `index_tradeoff.html` / `index_tradeoff_strong.html` - トレードオフ検証用のデモ
-- `dataset/` - 利用した元データと変換済みデータ
-- `lib/` - 可視化用ライブラリ/コード
-- `osqp/` - 必要に応じた最適化ライブラリ関連
-- `a.json` - おそらく追加のデータまたは設定ファイル
-
-## 動作確認方法
-
-1. リポジトリをクローンまたはダウンロードする
-2. ブラウザでルートの `index.html` または `index_region_alpha_demo.html` などを開く
-
-### 公開デモ
+## 公開デモ
 
 - 実際のデモページ: https://on6848.github.io/storyline_b4/index_region_alpha_demo.html
 
-上記リンクを開くと `index_region_alpha_demo.html` が実行され、閲覧者は可視化ページを直接体験できます。
+このリンクを開くと `index_region_alpha_demo.html` が実行され、閲覧者が直接可視化を体験できます。
 
-> ローカルファイルから開いた場合、ブラウザのセキュリティ制限で読み込みが失敗する場合があります。必要に応じて簡易HTTPサーバーを立ててください。
+## 含まれるファイル
+
+- `index.html` - 基本的なStoryFlowデモ
+- `index_region.html` - 地方スケールのStoryFlowレイアウト
+- `index_region_alpha_demo.html` - スケール間比較とトレードオフを示すαデモ
+- `index_region_alt.html` - 地方レイアウトの別バリエーション
+- `index_tradeoff.html` - パラメータによる交差数・安定性のトレードオフ検証
+- `index_tradeoff_strong.html` - 強調したトレードオフ検証デモ
+- `index_extra.html` - 交差を多く含む別ページ
+- `dataset/` - 利用した元データと変換済みデータ
+- `lib/` - 可視化用ライブラリ/コード
+- `osqp/` - 最適化ライブラリ関連
+- `a.json` - 追加のデータまたは設定ファイル
+
+## 動作確認方法
+
+### 公開ページで見る
+
+1. `https://on6848.github.io/storyline_b4/index_region_alpha_demo.html` を開きます
+2. `index_region_alpha_demo.html` のインタラクティブな画面で、データ切り替えやパラメータ調整を体験します
+
+### ローカルで見る
+
+1. リポジトリをクローンまたはダウンロードする
+2. ターミナルでリポジトリのルートに移動する
 
 ```bash
 cd storyflow-d3
 python3 -m http.server 8000
 ```
 
-その後、ブラウザで `http://localhost:8000/` にアクセスします。
+3. ブラウザで以下にアクセスする
+
+- `http://localhost:8000/index_region_alpha_demo.html`
+- `http://localhost:8000/index.html`
+
+> 直接 `file://` で開くと、ブラウザのセキュリティ制限によりデータの読み込みが失敗する場合があります。HTTPサーバーを使うのが推奨です。
+
+## `index_region_alpha_demo.html` の操作方法
+
+- `データセット` ドロップダウン
+  - `市区町村セッション（αデモ）` / `都道府県セッション（αデモ）` / `地方セッション（αデモ）` を選択し、異なる階層での配置を確認します
+- `interpolation` ドロップダウン
+  - 線の補間方法を変更できます（Linear / Step / Basis / Bundle / Cardinal / Monotone など）
+- `Redraw All` ボタン
+  - 現在の設定に応じて全体レイアウトを再描画します
+- `Plot Tradeoff` ボタン
+  - 現在のパラメータで交差数と配置安定性のトレードオフを解析して表示します
+- `LOD バンドリング` チェックボックス
+  - レベルオブディティールによるバンドリングを有効にして、重なりを抑えた描画を試せます
+- `配置一貫性重み` スライダー
+  - レイアウトの時間的一貫性をどれだけ重視するかを調整します。値を大きくするほど、前後ステップ間の配置変化が抑えられます
+
+## `index_region_alpha_demo.html` が描画する内容
+
+- 上部コントロールでデータセットと補間方法を選択できます
+- `スケール間比較` パネル
+  - 同一時刻における順位差（Kendall距離）を計算し、都市・県・地方のレイアウト差を比較します
+- `トレードオフ` パネル
+  - `配置一貫性重み` を変化させたときの、交差数と配置変化率の関係を可視化します
+- 中央のキャンバス領域
+  - ストーリーラインの線やラベルを時間軸に沿って配置し、データの変化とレイアウトの違いを直感的に示します
+
+## 各デモの目的
+
+- `index.html`
+  - StoryFlowの基本的な可視化を確認するための標準デモ
+- `index_region.html`
+  - 地方規模のレイアウト手法を検証するデモ
+- `index_region_alpha_demo.html`
+  - 複数階層での比較とトレードオフ分析を目的としたα版デモ
+- `index_region_alt.html`
+  - 同じ地方データに対する別構成のレイアウトバリエーション
+- `index_tradeoff.html`
+  - 目的関数の重みやパラメータ変更が交差数・安定性に与える影響を可視化するページ
+- `index_tradeoff_strong.html`
+  - より明確にパラメータトレードオフを示す強調版デモ
+- `index_extra.html`
+  - 交差の多いレイアウトを比較し、可視化手法の制約を確認するための別ページ
 
 ## 参考資料
 
