@@ -3,7 +3,7 @@
 
 <head lang="en">
   <meta charset="UTF-8">
-  <title>StoryFlow: Region Scale (Alpha Demo)</title>
+  <title>文豪の関係性 Storyline</title>
   <link rel="stylesheet" type="text/css" href="lib/jquery-ui-themes-1.11.4/themes/flick/jquery-ui.min.css" />
   <link rel="stylesheet" type="text/css" href="lib/jquery.sumoselect/sumoselect.css" />
 
@@ -16,34 +16,41 @@
   <style>
     body {
       margin: 0;
-      font-family: sans-serif;
+      font-family: Inter, "Helvetica Neue", Arial, "Hiragino Sans", "Yu Gothic", sans-serif;
+      color: #1f2933;
+      background: #f4f6f8;
     }
 
     #controls {
       position: sticky;
       top: 0;
-      background: #fff;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(10px);
       z-index: 10;
-      padding: 10px 12px;
-      border-bottom: 1px solid #ddd;
+      padding: 12px 18px;
+      border-bottom: 1px solid #dce3ea;
+      box-shadow: 0 8px 28px rgba(30, 41, 59, 0.08);
     }
 
     #canvases {
-      padding: 12px;
+      padding: 18px;
     }
 
     .panel {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      margin-bottom: 14px;
-      padding: 10px 10px 0 10px;
-      background: #fafafa;
+      border: 1px solid #d7dee6;
+      border-radius: 6px;
+      margin-bottom: 18px;
+      padding: 14px 14px 0 14px;
+      background: #fbfcfd;
+      box-shadow: 0 16px 45px rgba(30, 41, 59, 0.08);
     }
 
     .panel h3 {
-      margin: 0 0 8px 0;
-      font-size: 16px;
-      font-weight: 700;
+      margin: 0 0 12px 0;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0;
+      color: #111827;
     }
 
     .panel .meta {
@@ -55,13 +62,13 @@
     .axis path,
     .axis line {
       fill: none;
-      stroke: #999;
+      stroke: #cbd5df;
       shape-rendering: crispEdges;
     }
 
     .axis text {
-      font-size: 10px;
-      fill: #666;
+      font-size: 13px;
+      fill: #6b7280;
     }
 
     .timeGrid path {
@@ -69,52 +76,99 @@
     }
 
     .timeGrid line {
-      stroke: #eee;
+      stroke: #e7ecf1;
     }
 
+    .workEvent {
+      stroke: #fbfcfd;
+      stroke-width: 2px;
+      cursor: default;
+    }
 
-    #comparisons table {
-      width: 100%;
-      border-collapse: collapse;
+    .workEventLabel {
       font-size: 12px;
+      fill: #17202a;
+      pointer-events: none;
     }
 
-    #comparisons th,
-    #comparisons td {
-      border: 1px solid #ddd;
-      padding: 4px 6px;
-      text-align: left;
+    #canvases.hideWorkLabels .workEventLabel {
+      display: none;
     }
 
-    #comparisons th {
-      background: #f2f2f2;
+    .lifeEvent {
+      font-size: 18px;
+      pointer-events: none;
     }
 
-    #tradeoffChart {
-      display: block;
-      width: 100%;
-      height: 260px;
-      background: #fff;
-      border: 1px solid #eee;
-      border-radius: 6px;
+    .lifeMarker rect {
+      fill: #ffffff;
+      stroke: #2f3a45;
+      stroke-width: 1.2px;
+      rx: 3;
+      ry: 3;
+      filter: drop-shadow(0 2px 5px rgba(30, 41, 59, 0.16));
     }
 
-    .tradeoffLine {
-      fill: none;
-      stroke-width: 2;
+    .lifeMarker text {
+      dominant-baseline: central;
+      text-anchor: middle;
     }
 
-    .tradeoffAxis path,
-    .tradeoffAxis line {
-      fill: none;
-      stroke: #999;
-      shape-rendering: crispEdges;
+    .line {
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 1px 1px rgba(30, 41, 59, 0.08));
     }
 
-    .tradeoffAxis text {
-      font-size: 10px;
-      fill: #666;
+    .locationPath {
+      mix-blend-mode: multiply;
+      cursor: help;
     }
+
+    .secondaryLine {
+      stroke-linecap: round;
+      stroke-dasharray: 3,4;
+      opacity: 0.85;
+    }
+
+    .secondaryLineLabel {
+      font-size: 11px;
+      font-style: italic;
+      fill: #3a4750;
+    }
+
+    #canvases.hideSecondaryLines .secondaryLineGroup {
+      display: none;
+    }
+
+    .name,
+    .locationLabel,
+    .workEventLabel,
+    .lifeEvent,
+    .lifeMarker text,
+    .secondaryLineLabel {
+      paint-order: stroke;
+      stroke: #fbfcfd;
+      stroke-width: 4px;
+      stroke-linejoin: round;
+    }
+
+    .name,
+    .locationLabel {
+      fill: #111827;
+      font-weight: 700;
+    }
+
+    #controls a {
+      color: #2563eb;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    #controls a:hover {
+      text-decoration: underline;
+    }
+
   </style>
 </head>
 
@@ -123,29 +177,7 @@
     <table>
       <tr>
         <td>
-          <select name="dataset" id="dataset">
-            <option value="dataset/municipality_sessions_alpha_demo.json">市区町村セッション（αデモ）</option>
-            <option value="dataset/prefecture_sessions_alpha_demo.json">都道府県セッション（αデモ）</option>
-            <option value="dataset/region_sessions_alpha_demo.json">地方セッション（αデモ）</option>
-          </select>
-        </td>
-        <td>
-          <select name="interpolation" id="interpolation">
-            <option value="linear">Linear</option>
-            <option value="step">Step</option>
-            <option value="step-before">Step-before</option>
-            <option value="step-after">Step-after</option>
-            <option value="basis">Basis</option>
-            <option value="bundle">Bundle</option>
-            <option value="cardinal">Cardinal</option>
-            <option value="monotone" selected>Monotone</option>
-          </select>
-        </td>
-        <td style="padding-left:10px;">
-          <button id="redrawAll">Redraw All</button>
-        </td>
-        <td style="padding-left:10px;">
-          <button id="plotTradeoff">Plot Tradeoff</button>
+          <button id="redrawAll">Redraw</button>
         </td>
         <td style="padding-left:12px; font-size:12px;">
           <label>
@@ -161,109 +193,116 @@
           </label>
         </td>
         <td style="padding-left:12px; font-size:12px;">
-          <a href="index_extra.html">交差多めの別ページ</a>
+          <label>
+            <input type="checkbox" id="workLabelToggle" checked />
+            作品名ラベル
+          </label>
+        </td>
+        <td style="padding-left:12px; font-size:12px;">
+          <label>
+            <input type="checkbox" id="secondaryLineToggle" checked />
+            並行セッション
+          </label>
         </td>
       </tr>
     </table>
     <div style="font-size:12px;color:#666;margin-top:6px;">
-      上から全データセットを縦に積んで表示します（比較用）。切替はしません。
+      粒度:
+      <a href="storyline_country.html">国</a> /
+      <a href="storyline_region.html">地方</a> /
+      <a href="storyline_prefecture.html">都道府県</a> /
+      <a href="storyline_city.html">市区町村</a> /
+      <a href="storyline_facility.html">施設</a>
+      <a href="editor.html" style="margin-left:16px;">データ編集</a>
     </div>
-  </div>
-
-  <div id="comparisons" class="panel">
-    <h3>スケール間比較</h3>
-    <div class="meta">同時刻における順位差（Kendall距離）の平均を表示します。</div>
-    <table id="comparisonTable">
-      <thead>
-        <tr>
-          <th>比較ペア</th>
-          <th>配置変化率(Kendall平均)</th>
-          <th>交差数合計(2レイアウト)</th>
-          <th>重なりフレーム数</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div id="tradeoff01" class="panel">
-    <h3>トレードオフ（市区町村 vs 都道府県）</h3>
-    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
-    <svg id="tradeoffChart01"></svg>
-  </div>
-
-  <div id="tradeoff12" class="panel">
-    <h3>トレードオフ（都道府県 vs 地方）</h3>
-    <div class="meta">横軸: 配置一貫性重み / 縦軸: 交差数(正規化)・配置変化率(Kendall平均)</div>
-    <svg id="tradeoffChart12"></svg>
   </div>
 
   <div id="canvases"></div>
 
   <script type="text/javascript">
+    var DATASET = { path: "dataset/bungo_relationships.json", name: "日本近現代文学史: 啓蒙期・翻訳文学・政治小説" };
     var osqpModule = null;
     var osqpModulePromise = null;
+
+    // Storyline S-curve: flat tangent at every real frame, control points at the
+    // horizontal midpoint. Same-session members share frame x's and sit a fixed
+    // distance apart at each frame, so their curves are exact vertical translates
+    // (parallel); control points never leave their segment, so no hooks/overshoot.
+    function storylineCurve(points) {
+      var path = [points[0]];
+      for (var i = 1; i < points.length; i++) {
+        var p0 = points[i - 1], p1 = points[i], mx = (p0[0] + p1[0]) / 2;
+        path.push("C", mx, ",", p0[1], " ", mx, ",", p1[1], " ", p1[0], ",", p1[1]);
+      }
+      return path.join("");
+    }
 
     var options = {
       svg: {
         height: 700,
         width: 3000,
         topPadding: 55,
+        leftGutter: 170,
         autoHeight: true,
         minHeight: 480,
-        maxHeight: 1400,
+        maxHeight: 1800,
         rowHeight: 36
       },
       animation: { transitionDuration: 700 },
       characters: {
-        interpolation: "monotone",
+        interpolation: storylineCurve,
         class: "line",
         labelClass: "name",
         labelX: 4,
         labelDy: -4,
         sessionCoefficient: 2,
-        strokeWidth: 4,
-        highlightStrokeWidth: 8,
+        strokeWidth: 5,
+        highlightStrokeWidth: 9,
         highlightDuration: 300,
         nonHighlightedOpacity: 0.2,
         toKeep: null
       },
       locations: {
         interpolation: "monotone",
-        fontSize: "26px",
-        labelX: 30,
+        fontSize: "17px",
+        labelX: 12,
         labelDy: -10,
         padding: 18,
-        opacity: 0.2,
+        opacity: 0.16,
+        cornerStrokeWidth: 8,
         class: "locationPath",
         labelClass: "locationLabel",
         splitLength: 400,
         hierarchy: {
           enabled: true,
-          opacity: 0.28,
+          opacity: 0,
           padding: 16,
           paddingStep: 0
         }
       },
       algorithm: {
         sweepingMaxIterations: 20,
+        globalOrderOptimizePasses: 8,
+        globalOrderSmoothWeight: 0.65,
         stableNeeded: 2,              // 不足⑤で使ってるなら統一
         missingEntityPolicy: "hold",  // "hold" | "bottom"
         missingEntityPenalty: 100000,  // "bottom" のときの大きい値
 
         // ---- 5.3 / 5.4 ----
         alpha: 0.1,          // 5.3 session sim の α
-        din: 36,             // 5.4 (5c) 同一セッション内の隣接距離
-        dout: 72,            // 5.4 (5d) 異セッション間の最小距離
+        din: 34,             // 5.4 (5c) 同一セッション内の隣接距離
+        dout: 76,            // 5.4 (5d) 異セッション間の最小距離
         epsOrder: 1e-3,      // 5.4 (5a) orderの厳密性
 
-        lambdaWhite: 0.05,   // 目的関数：whitespace項の重み
+        lambdaWhite: 0.02,   // 目的関数：whitespace項の重み
+        wiggleWeight: 8.0,   // 時間方向の上下移動を抑える重み
+        sessionStabilityWeight: 60, // 同一セッションに居続けるフレーム間の移動に上乗せする重み（セッション全体の不要な上下動を抑制）
         consistencyWeight: 0.0,   // 0..1: crossing優先 ↔ 配置一貫性優先
 
         // ADMM solver settings
         rho: 2.0,
         sigma: 1e-6,         // (Q + rho A^T A + sigma I) を正則化
-        maxIterQP: 4000,
+        maxIterQP: 6000,
         epsAbs: 1e-6,
         epsRel: 1e-6,
         useOSQP: true
@@ -276,20 +315,6 @@
     };
 
     $(document).ready(function () {
-      $("#dataset").selectmenu({
-        width: 230,
-        select: function () { }
-      });
-
-      $("#interpolation").selectmenu({
-        width: 200,
-        select: function (event, ui) {
-          options.characters.interpolation = ui.item.value;
-          options.locations.interpolation = options.characters.interpolation;
-          renderAllDatasets();
-        }
-      });
-
       $("#redrawAll").button().on("click", function () {
         renderAllDatasets();
       });
@@ -297,10 +322,6 @@
       $("#bundleToggle").on("change", function () {
         options.bundle.enabled = $(this).is(":checked");
         renderAllDatasets();
-      });
-
-      $("#plotTradeoff").button().on("click", function () {
-        renderTradeoffChart();
       });
 
       $("#consistencyWeight").on("input change", function () {
@@ -312,6 +333,14 @@
       });
 
       $("#consistencyWeightVal").text(options.algorithm.consistencyWeight.toFixed(2));
+
+      $("#workLabelToggle").on("change", function () {
+        $("#canvases").toggleClass("hideWorkLabels", !$(this).is(":checked"));
+      });
+
+      $("#secondaryLineToggle").on("change", function () {
+        $("#canvases").toggleClass("hideSecondaryLines", !$(this).is(":checked"));
+      });
 
       if (options.algorithm.useOSQP) {
         ensureOSQPReady(renderAllDatasets);
@@ -337,18 +366,28 @@
           })
           .catch(function (err) {
             console.error("OSQPModule init failed:", err);
+            options.algorithm.useOSQP = false;
             return null;
           });
       }
-      osqpModulePromise.then(function () { cb(); });
+      var settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        cb();
+      }
+      osqpModulePromise.then(finish);
+      setTimeout(function () {
+        if (settled) return;
+        console.warn("OSQPModule init timed out; falling back to ADMM.");
+        osqpModule = null;
+        options.algorithm.useOSQP = false;
+        finish();
+      }, 3000);
     }
 
     function getDatasetListFromSelect() {
-      var list = [];
-      $("#dataset option").each(function () {
-        list.push({ path: $(this).attr("value"), name: $(this).text() });
-      });
-      return list;
+      return [DATASET];
     }
 
     function kendallDistance(orderA, orderB) {
@@ -382,291 +421,7 @@
       return { discordant: discordant, totalPairs: totalPairs, normalized: normalized, n: n };
     }
 
-    function computeCrossScaleComparisons(list) {
-      var rows = [];
-      for (var i = 0; i < list.length; i++) {
-        for (var j = i + 1; j < list.length; j++) {
-          var a = list[i];
-          var b = list[j];
-          var aData = a.data;
-          var bData = b.data;
-
-          var cA = (aData && aData.d3 && aData.d3.metrics && typeof aData.d3.metrics.crossingsTotal === "number")
-            ? aData.d3.metrics.crossingsTotal : null;
-          var cB = (bData && bData.d3 && bData.d3.metrics && typeof bData.d3.metrics.crossingsTotal === "number")
-            ? bData.d3.metrics.crossingsTotal : null;
-          var crossingsTotal = (cA !== null && cB !== null) ? (cA + cB) : null;
-
-          var start = Math.max(aData.d3.timeStart, bData.d3.timeStart);
-          var end = Math.min(aData.d3.timeEnd, bData.d3.timeEnd);
-
-          var sum = 0;
-          var count = 0;
-          for (var t = start; t < end; t++) {
-            var idxA = t - aData.d3.timeStart;
-            var idxB = t - bData.d3.timeStart;
-            var momentA = aData.d3.time[idxA];
-            var momentB = bData.d3.time[idxB];
-            if (!momentA || !momentB) continue;
-            if (!momentA.sortedCharacters || !momentB.sortedCharacters) continue;
-
-            var kd = kendallDistance(momentA.sortedCharacters, momentB.sortedCharacters);
-            if (kd.totalPairs === 0) continue;
-            sum += kd.normalized;
-            count++;
-          }
-
-          rows.push({
-            aName: a.name,
-            bName: b.name,
-            kendallAvg: count ? (sum / count) : null,
-            crossingsTotal: crossingsTotal,
-            overlap: count
-          });
-        }
-      }
-      return rows;
-    }
-
-    function renderComparisonTable(rows) {
-      var table = d3.select("#comparisonTable");
-      var body = table.select("tbody");
-
-      var sel = body.selectAll("tr").data(rows);
-      sel.enter().append("tr");
-      sel.html(function (d) {
-        var kText = (d.kendallAvg === null) ? "-" : d.kendallAvg.toFixed(3);
-        var cText = (d.crossingsTotal === null || d.crossingsTotal === undefined) ? "-" : d.crossingsTotal;
-        return "<td>" + d.aName + " × " + d.bName + "</td>" +
-          "<td>" + kText + "</td>" +
-          "<td>" + cText + "</td>" +
-          "<td>" + d.overlap + "</td>";
-      });
-      sel.exit().remove();
-
-      d3.select("#comparisons").style("display", rows.length ? "block" : "none");
-    }
-
-    function renderTradeoffChart() {
-      var datasets = getDatasetListFromSelect();
-      var weights = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-      if (datasets.length < 2) {
-        d3.select("#tradeoffChart01").html("");
-        d3.select("#tradeoffChart12").html("");
-        return;
-      }
-
-      function loadDataset(dsInfo, cb) {
-        d3.json(dsInfo.path, function (error, json) {
-          if (error) {
-            console.error(error);
-            cb(error);
-            return;
-          }
-          cb(null, json);
-        });
-      }
-
-      function buildSeries(json, baseOrderOverride) {
-        var series = [];
-        weights.forEach(function (w) {
-          var local = jQuery.extend(true, {}, json);
-          var localOptions = jQuery.extend(true, {}, options);
-          localOptions.characters.toKeep = null;
-          localOptions.algorithm.consistencyWeight = w;
-          localOptions.algorithm.baseOrderOverride = baseOrderOverride || null;
-          if (localOptions.bundle && localOptions.bundle.enabled) {
-            localOptions.algorithm.din = 0;
-          }
-
-          var annotated = annotateDataset(local, localOptions);
-          var metrics = annotated && annotated.d3 ? annotated.d3.metrics : null;
-          if (metrics) {
-            series.push({
-              w: w,
-              crossingsAvg: metrics.crossingsAvg,
-              kendallAvg: metrics.kendallAvg,
-              data: annotated
-            });
-          }
-        });
-        return series;
-      }
-
-      function renderPair(idxA, idxB, svgId) {
-        loadDataset(datasets[idxA], function (errA, jsonA) {
-          if (errA) {
-            drawTradeoffChartTo([], svgId);
-            return;
-          }
-          loadDataset(datasets[idxB], function (errB, jsonB) {
-            if (errB) {
-              drawTradeoffChartTo([], svgId);
-              return;
-            }
-            
-          // Build base order from dataset 1 (w=0) and reuse for both datasets.
-          var seedSeries = buildSeries(jsonA, null);
-          var baseOrders = [];
-          if (seedSeries.length > 0 && seedSeries[0].data && seedSeries[0].data.d3) {
-            baseOrders = seedSeries[0].data.d3.time.map(function (m) {
-              return (m.d3 && m.d3.baseOrder) ? m.d3.baseOrder.slice() : null;
-            });
-          }
-
-          var seriesA = buildSeries(jsonA, baseOrders);
-          var seriesB = buildSeries(jsonB, baseOrders);
-
-            var results = [
-              { name: datasets[idxA].name, series: seriesA },
-              { name: datasets[idxB].name, series: seriesB }
-            ];
-            drawTradeoffChartTo(results, svgId);
-          });
-        });
-      }
-
-      renderPair(0, 1, "#tradeoffChart01");
-      if (datasets.length >= 3) {
-        renderPair(1, 2, "#tradeoffChart12");
-      } else {
-        d3.select("#tradeoffChart12").html("");
-      }
-    }
-
-    function drawTradeoffChartTo(results, svgId) {
-      var svg = d3.select(svgId);
-      svg.html("");
-
-      var valid = results.filter(function (r) { return r && r.series && r.series.length > 0; });
-      if (valid.length < 2) return;
-
-      var paired = [];
-      var len = Math.min(valid[0].series.length, valid[1].series.length);
-      for (var i = 0; i < len; i++) {
-        var a = valid[0].series[i];
-        var b = valid[1].series[i];
-        if (a.w !== b.w) continue;
-
-        var start = Math.max(a.data.d3.timeStart, b.data.d3.timeStart);
-        var end = Math.min(a.data.d3.timeEnd, b.data.d3.timeEnd);
-
-        var sum = 0;
-        var count = 0;
-        for (var t = start; t < end; t++) {
-          var ia = t - a.data.d3.timeStart;
-          var ib = t - b.data.d3.timeStart;
-          var ma = a.data.d3.time[ia];
-          var mb = b.data.d3.time[ib];
-          if (!ma || !mb || !ma.sortedCharacters || !mb.sortedCharacters) continue;
-          var kd = kendallDistance(ma.sortedCharacters, mb.sortedCharacters);
-          if (kd.totalPairs === 0) continue;
-          sum += kd.normalized;
-          count++;
-        }
-
-        var kAvg = count ? (sum / count) : 0;
-        var cTotal = (a.data.d3 && a.data.d3.metrics ? a.data.d3.metrics.crossingsTotal : 0) +
-          (b.data.d3 && b.data.d3.metrics ? b.data.d3.metrics.crossingsTotal : 0);
-        paired.push({ w: a.w, crossingsTotal: cTotal, kendallAvg: kAvg });
-      }
-
-      if (paired.length === 0) return;
-
-      var width = 600;
-      var height = 400;
-      var margin = { left: 50, right: 50, top: 16, bottom: 30 };
-      var innerW = width - margin.left - margin.right;
-      var innerH = height - margin.top - margin.bottom;
-
-      svg.attr("width", width).attr("height", height);
-
-      var maxCross = d3.max(paired, function (d) { return d.crossingsTotal; }) || 1;
-      paired.forEach(function (d) {
-        d.crossingsNorm = maxCross ? (d.crossingsTotal / maxCross) : 0;
-      });
-
-      var x = d3.scale.linear().domain([0, 1]).range([0, innerW]);
-      var yKen = d3.scale.linear().domain([0, 1]).range([innerH, 0]);
-      var yCross = yKen;
-
-      var g = svg.append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-      var xAxis = d3.svg.axis().scale(x).orient("bottom").ticks(5);
-      var yLeft = d3.svg.axis().scale(yCross).orient("left").ticks(4);
-      var yRight = d3.svg.axis().scale(yKen).orient("right").ticks(4);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .attr("transform", "translate(0," + innerH + ")")
-        .call(xAxis);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .call(yLeft);
-
-      g.append("g")
-        .attr("class", "tradeoffAxis")
-        .attr("transform", "translate(" + innerW + ",0)")
-        .call(yRight);
-
-      var lineCross = d3.svg.line()
-        .x(function (d) { return x(d.w); })
-        .y(function (d) { return yCross(d.crossingsNorm); });
-
-      var lineKen = d3.svg.line()
-        .x(function (d) { return x(d.w); })
-        .y(function (d) { return yKen(d.kendallAvg); });
-
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#333")
-        .attr("d", lineCross);
-
-      g.append("path")
-        .datum(paired)
-        .attr("class", "tradeoffLine")
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-dasharray", "5,3")
-        .attr("d", lineKen);
-
-      var legend = g.append("g").attr("transform", "translate(0,-4)");
-      legend.append("line")
-        .attr("x1", 0).attr("x2", 16)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#333")
-        .attr("stroke-width", 2);
-      legend.append("text")
-        .attr("x", 20).attr("y", 3)
-        .style("font-size", "10px")
-        .text("crossings (normalized)");
-
-      legend.append("line")
-        .attr("x1", 180).attr("x2", 196)
-        .attr("y1", 0).attr("y2", 0)
-        .attr("stroke", "#1f77b4")
-        .attr("stroke-width", 2)
-        .attr("stroke-dasharray", "5,3");
-      legend.append("text")
-        .attr("x", 200).attr("y", 3)
-        .style("font-size", "10px")
-        .text("kendall (between 2 datasets)");
-    }
-
     function renderAllFromResults(results) {
-      var comparisonItems = [];
-      for (var i = 0; i < results.length; i++) {
-        var res = results[i];
-        if (res && !res.error && res.data) {
-          comparisonItems.push({ name: res.info.name, data: res.data });
-        }
-      }
-
-      var compRows = computeCrossScaleComparisons(comparisonItems);
-      renderComparisonTable(compRows);
-
       d3.select("#canvases").html("");
       results.forEach(function (res, idx) {
         var panel = d3.select("#canvases")
@@ -675,10 +430,8 @@
           .attr("id", "panel-" + idx);
 
         panel.append("h3").text(res.info.name);
-        var meta = panel.append("div").attr("class", "meta");
 
         if (res.error) {
-          meta.text("path: " + res.info.path);
           panel.append("div")
             .style("color", "crimson")
             .style("padding", "8px 0 12px 0")
@@ -690,16 +443,6 @@
           .attr("height", options.svg.height)
           .attr("width", options.svg.width);
 
-        var metrics = res.data && res.data.d3 ? res.data.d3.metrics : null;
-        var metaText = "path: " + res.info.path +
-          " / interpolation: " + options.characters.interpolation +
-          " / consistency: " + options.algorithm.consistencyWeight.toFixed(2);
-        if (metrics) {
-          metaText += " / crossings: " + metrics.crossingsTotal +
-            " (avg " + metrics.crossingsAvg.toFixed(2) + ")" +
-            " / kendall(avg): " + metrics.kendallAvg.toFixed(3);
-        }
-        meta.text(metaText);
         drawStoryFlow(res.data, res.options, svg, "p" + idx + "-");
       });
     }
@@ -715,7 +458,6 @@
       var remaining = datasets.length;
 
       if (remaining === 0) {
-        renderComparisonTable([]);
         d3.select("#canvases").html("");
         return;
       }
@@ -754,7 +496,7 @@
       var locationColors = dataset.locations.length <= 10 ? d3.scale.category10() : d3.scale.category20();
 
       for (var i = 0; i < dataset.characters.length; ++i) {
-        dataset.characters[i].d3 = { color: characterColors(i) };
+        dataset.characters[i].d3 = { color: dataset.characters[i].color || characterColors(i) };
       }
 
       for (i = 0; i < dataset.locations.length; ++i) {
@@ -825,16 +567,52 @@
         .domain([0, maxCharacters])
         .range([options.svg.topPadding, options.svg.height - axisPadding]);
 
-      var horizontalScale = d3.scale.linear()
-        .domain([0, dataset.d3.time.length])
-        .range([0, options.svg.width]);
+      var leftGutter = (options.svg && typeof options.svg.leftGutter === "number") ? options.svg.leftGutter : 0;
 
-      var timeTicks = d3.range(0, dataset.d3.time.length + 1);
+      var timeValues = (dataset.timeValues && dataset.timeValues.length)
+        ? dataset.timeValues.map(function (d) { return +d; })
+        : null;
+
+      function timeValueForIndex(index) {
+        if (timeValues) {
+          if (timeValues[index] !== undefined) return timeValues[index];
+          var lo = Math.floor(index);
+          var hi = Math.ceil(index);
+          if (timeValues[lo] !== undefined && timeValues[hi] !== undefined && hi !== lo) {
+            var ratio = index - lo;
+            return timeValues[lo] + (timeValues[hi] - timeValues[lo]) * ratio;
+          }
+          if (timeValues[lo] !== undefined) return timeValues[lo];
+          if (timeValues[hi] !== undefined) return timeValues[hi];
+        }
+        return index;
+      }
+
+      function xForTimeIndex(localIndex) {
+        return horizontalScale(timeValueForIndex(dataset.d3.timeStart + localIndex));
+      }
+
+      var horizontalDomain = timeValues
+        ? [
+          d3.min([d3.min(timeValues), dataset.timeLabels ? d3.min(dataset.timeLabels.map(function (d) { return +d; })) : d3.min(timeValues)]),
+          d3.max([d3.max(timeValues), dataset.timeLabels ? d3.max(dataset.timeLabels.map(function (d) { return +d; })) : d3.max(timeValues)])
+        ]
+        : [0, dataset.d3.time.length];
+
+      var horizontalScale = d3.scale.linear()
+        .domain(horizontalDomain)
+        .range([leftGutter, options.svg.width]);
+
+      var timeTicks = timeValues && dataset.timeLabels
+        ? dataset.timeLabels.map(function (d) { return +d; })
+        : d3.range(0, dataset.d3.time.length + 1);
       var timeAxis = d3.svg.axis()
         .scale(horizontalScale)
         .orient("bottom")
         .tickValues(timeTicks)
         .tickFormat(function (d) {
+          if (timeValues) return d;
+          if (dataset.timeLabels && dataset.timeLabels[d] !== undefined) return dataset.timeLabels[d];
           return dataset.d3.timeStart + d;
         });
 
@@ -886,6 +664,11 @@
 
       dataset.characters.forEach(function (c) { if (c.d3) c.d3.points = []; });
       dataset.locations.forEach(function (l) { if (l.d3) l.d3.points = []; });
+      dataset.locations.forEach(function (loc) {
+        loc.hasMultiMemberSession = dataset.sessions.some(function (session) {
+          return session.location === loc.id && session.members && session.members.length > 1;
+        });
+      });
 
       for (var t = 0; t < dataset.d3.time.length; ++t) {
         var time = dataset.d3.time[t];
@@ -917,13 +700,13 @@
               })[0];
 
               if (character.isRemoved) continue;
-              if (!character.d3) character.d3 = { color: characterColors(character.id) };
+              if (!character.d3) character.d3 = { color: character.color || characterColors(character.id) };
               if (character.d3.points === undefined) character.d3.points = [];
 
-              character.d3.points.push({
-                x: horizontalScale(t),
-                y: mean + ((verticalScale(offset + i) - mean) / options.characters.sessionCoefficient)
-              });
+            character.d3.points.push({
+              x: xForTimeIndex(t),
+              y: mean + ((verticalScale(offset + i) - mean) / options.characters.sessionCoefficient)
+            });
             }
 
             offset += charactersInSession;
@@ -938,17 +721,62 @@
             })[0];
 
             if (!character2 || character2.isRemoved) continue;
-            if (!character2.d3) character2.d3 = { color: characterColors(character2.id) };
+            if (!character2.d3) character2.d3 = { color: character2.color || characterColors(character2.id) };
             if (!character2.d3.points) character2.d3.points = [];
 
             character2.d3.points.push({
-              x: horizontalScale(t),
+              x: xForTimeIndex(t),
               y: yA * time.d3.y[cid2] + yB  // ★これが最終y（QP結果）
             });
           }
 
         }
       }
+
+      function ensureCharacterPointsVisible() {
+        var minY = Infinity;
+        var maxY = -Infinity;
+        dataset.characters.forEach(function (character) {
+          if (!character || !character.d3 || !character.d3.points) return;
+          character.d3.points.forEach(function (point) {
+            if (!isFinite(point.y)) return;
+            minY = Math.min(minY, point.y);
+            maxY = Math.max(maxY, point.y);
+          });
+        });
+        if (!isFinite(minY) || !isFinite(maxY)) return;
+
+        var topLimit = options.svg.topPadding + 20;
+        var bottomPadding = 52;
+        var shiftY = minY < topLimit ? (topLimit - minY) : 0;
+        if (shiftY !== 0) {
+          dataset.characters.forEach(function (character) {
+            if (!character || !character.d3 || !character.d3.points) return;
+            character.d3.points.forEach(function (point) {
+              point.y += shiftY;
+            });
+          });
+          minY += shiftY;
+          maxY += shiftY;
+        }
+
+        var neededHeight = Math.ceil(maxY + bottomPadding);
+        if (neededHeight > options.svg.height) {
+          options.svg.height = neededHeight;
+          svg.attr("height", options.svg.height);
+          axisY = options.svg.height - 16;
+          plotHeight = axisY - options.svg.topPadding;
+          timeGrid.tickSize(-plotHeight, 0);
+          svg.select(".timeGrid")
+            .attr("transform", "translate(0," + axisY + ")")
+            .call(timeGrid);
+          svg.select(".timeAxis")
+            .attr("transform", "translate(0," + axisY + ")")
+            .call(timeAxis);
+        }
+      }
+
+      ensureCharacterPointsVisible();
 
       for (t = 0; t < dataset.d3.time.length; ++t) {
         time = dataset.d3.time[t];
@@ -968,7 +796,7 @@
               if (location.d3.points == undefined) location.d3.points = [];
 
               character2.d3.points.forEach(function (characterPoint) {
-                if (characterPoint.x != horizontalScale(t)) return;
+                if (Math.abs(characterPoint.x - xForTimeIndex(t)) > 1e-6) return;
 
                 if (location.d3.points.length == 0) {
                   location.d3.points.push({ top: characterPoint, bottom: characterPoint });
@@ -1175,7 +1003,7 @@
               }
 
               st.current.points.push({
-                x: horizontalScale(t),
+                x: xForTimeIndex(t),
                 top: b.min - pad,
                 bottom: b.max + pad
               });
@@ -1242,45 +1070,335 @@
 
       function setLocationAttributes(locations) {
         return locations
-          .attr("id", function (d) { return idPrefix + options.locations.class + d.id; })
           .attr("class", options.locations.class)
-          .attr("d", function (d) { return locationArea(d.d3.points); })
-          .attr("fill", function (d) { return d.d3.color; })
+          .attr("d", function (d) { return locationArea(d.points); })
+          .attr("fill", function (d) { return d.color; })
+          .attr("stroke", function (d) { return d.color; })
+          .attr("stroke-width", options.locations.cornerStrokeWidth || 0)
+          .attr("stroke-linejoin", "round")
+          .attr("stroke-linecap", "round")
           .attr("opacity", options.locations.opacity);
       }
 
-      var locations = svg.selectAll("." + options.locations.class).data(dataset.locations);
+      function buildMultiMemberLocationBands(ds) {
+        var rawBands = [];
+        function characterNameById(cid) {
+          var character = ds.characters.filter(function (c) { return c.id === cid; })[0];
+          return character ? character.name : ("id:" + cid);
+        }
+
+        function uniqueSortedNames(members) {
+          var seen = {};
+          var names = [];
+          members.forEach(function (cid) {
+            var name = characterNameById(cid);
+            if (seen[name]) return;
+            seen[name] = true;
+            names.push(name);
+          });
+          return names.sort();
+        }
+
+        function uniqueSortedNameList(names) {
+          var seen = {};
+          var out = [];
+          names.forEach(function (name) {
+            if (seen[name]) return;
+            seen[name] = true;
+            out.push(name);
+          });
+          return out.sort();
+        }
+
+        function formatYearRange(startYear, endYear) {
+          function fmt(year) {
+            if (!isFinite(year)) return "";
+            return Math.abs(year - Math.round(year)) < 1e-6 ? String(Math.round(year)) : year.toFixed(2);
+          }
+          return fmt(startYear) + "-" + fmt(endYear);
+        }
+
+        function buildBandTooltip(band) {
+          var sessionLines = (band.sessions || []).map(function (session) {
+            return formatYearRange(session.startYear, session.endYear) + ": " + session.memberNames.join("、");
+          });
+          return [
+            "場所: " + (band.location ? band.location.name : ""),
+            "人物: " + (band.memberNames || []).join("、"),
+            "期間: " + formatYearRange(band.startYear, band.endYear),
+            "セッション:",
+            sessionLines.join("\n")
+          ].join("\n");
+        }
+
+        var orderedSessions = ds.sessions.slice().sort(function (a, b) {
+          var aStart = a.startYear !== undefined ? +a.startYear : timeValueForIndex(a.start);
+          var bStart = b.startYear !== undefined ? +b.startYear : timeValueForIndex(b.start);
+          if (aStart !== bStart) return aStart - bStart;
+          var aEnd = a.endYear !== undefined ? +a.endYear : timeValueForIndex(a.end);
+          var bEnd = b.endYear !== undefined ? +b.endYear : timeValueForIndex(b.end);
+          if (aEnd !== bEnd) return aEnd - bEnd;
+          var aLoc = ds.locations[a.location];
+          var bLoc = ds.locations[b.location];
+          var an = aLoc && aLoc.name ? aLoc.name : "";
+          var bn = bLoc && bLoc.name ? bLoc.name : "";
+          if (an !== bn) return an < bn ? -1 : 1;
+          var am = uniqueSortedNames(a.members || []).join("|");
+          var bm = uniqueSortedNames(b.members || []).join("|");
+          return am < bm ? -1 : (am > bm ? 1 : 0);
+        });
+
+        for (var sid = 0; sid < orderedSessions.length; sid++) {
+          var sess = orderedSessions[sid];
+          if (!sess.members || sess.members.length < 2) continue;
+          var loc = ds.locations[sess.location];
+          if (!loc || !loc.d3) continue;
+          var points = [];
+          var startYear = sess.startYear !== undefined ? +sess.startYear : timeValueForIndex(sess.start);
+          var endYear = sess.endYear !== undefined ? +sess.endYear : timeValueForIndex(sess.end);
+          // Session membership is a half-open interval everywhere else in
+          // this codebase (start <= t < end — see endsSessionAt/dataset
+          // sessions), so endYear itself is already the FIRST frame the
+          // member is gone, and that member's own line is already fully
+          // diverged by the time it reaches endYear's x position. Sampling this band's shape all the way out to the
+          // raw endYear (or even a hair before it) would pick up that
+          // already-diverged position and stretch the band to visually
+          // chase the departing member. Clamp sampling to the last REAL
+          // frame still inside the session instead, so the band's shape
+          // ends where membership actually ends.
+          var effectiveEndYear = endYear;
+          if (timeValues) {
+            var lastRealFrame = null;
+            for (var tv = 0; tv < timeValues.length; tv++) {
+              var candidate = timeValues[tv];
+              if (candidate > startYear + 1e-9 && candidate < endYear - 1e-9) {
+                if (lastRealFrame === null || candidate > lastRealFrame) lastRealFrame = candidate;
+              }
+            }
+            if (lastRealFrame !== null) effectiveEndYear = lastRealFrame;
+          }
+          var sampleYears = [startYear, effectiveEndYear];
+          [0.02, 0.05, 0.1, 0.25].forEach(function (epsilonYear) {
+            if (startYear + epsilonYear < effectiveEndYear) sampleYears.push(startYear + epsilonYear);
+            if (effectiveEndYear - epsilonYear > startYear) sampleYears.push(effectiveEndYear - epsilonYear);
+          });
+          if (timeValues) {
+            timeValues.forEach(function (year) {
+              if (startYear < year && year < effectiveEndYear) sampleYears.push(year);
+            });
+          }
+          var step = Math.max(1, Math.min(2, (effectiveEndYear - startYear) / 3));
+          for (var year = startYear + step; year < effectiveEndYear - 1e-6; year += step) sampleYears.push(year);
+          sampleYears.push((startYear + effectiveEndYear) / 2);
+          sampleYears = sampleYears.filter(function (year, idx, arr) {
+            return isFinite(year) && arr.indexOf(year) === idx;
+          }).sort(function (a, b) { return a - b; });
+
+          sampleYears.forEach(function (year) {
+            var x = horizontalScale(year);
+            var ys = [];
+            sess.members.forEach(function (cid) {
+              var ch = ds.characters.filter(function (c) { return c.id === cid; })[0];
+              if (!ch || !ch.d3 || !ch.d3.points) return;
+              var y = yAtXFromPoints(ch.d3.points, x);
+              if (y !== null && isFinite(y)) ys.push(y);
+            });
+            if (ys.length === 0) return;
+            points.push({
+              top: { x: x, y: d3.min(ys) },
+              bottom: { x: x, y: d3.max(ys) }
+            });
+          });
+          if (points.length > 0) {
+            rawBands.push({
+              key: "loc-session-" + sess.id,
+              location: loc,
+              points: points,
+              color: loc.d3.color,
+              startX: points[0].top.x,
+              endX: points[points.length - 1].top.x,
+              startYear: startYear,
+              endYear: endYear,
+              memberNames: uniqueSortedNames(sess.members),
+              sessions: [{
+                sid: sid,
+                startYear: startYear,
+                endYear: endYear,
+                memberNames: uniqueSortedNames(sess.members)
+              }]
+            });
+          }
+        }
+
+        var byLocation = {};
+        rawBands.forEach(function (band) {
+          var id = band.location.id;
+          if (!byLocation[id]) byLocation[id] = [];
+          byLocation[id].push(band);
+        });
+
+        var merged = [];
+        Object.keys(byLocation).forEach(function (locId) {
+          var list = byLocation[locId].sort(function (a, b) { return a.startX - b.startX; });
+          var current = null;
+          list.forEach(function (band) {
+            if (!current || band.startX - current.endX > 1e-6) {
+              current = {
+                key: "loc-merged-" + locId + "-" + merged.length,
+                location: band.location,
+                points: band.points.slice(),
+                color: band.color,
+                startX: band.startX,
+                endX: band.endX,
+                startYear: band.startYear,
+                endYear: band.endYear,
+                memberNames: band.memberNames.slice(),
+                sessions: band.sessions.slice()
+              };
+              merged.push(current);
+            } else {
+              current.points = current.points.concat(band.points.slice(1));
+              current.endX = band.endX;
+              current.endYear = band.endYear;
+              current.memberNames = uniqueSortedNameList(current.memberNames.concat(band.memberNames));
+              current.sessions = current.sessions.concat(band.sessions);
+            }
+          });
+        });
+
+        merged.forEach(function (band) {
+          band.tooltip = buildBandTooltip(band);
+        });
+
+        return merged;
+      }
+
+      var locationBands = buildMultiMemberLocationBands(dataset);
+      var locations = svg.selectAll("." + options.locations.class).data(locationBands, function (d) { return d.key; });
       setLocationAttributes(locations.transition().duration(options.animation.transitionDuration));
-      setLocationAttributes(locations.enter().append("path"));
+      var enteredLocations = setLocationAttributes(locations.enter().append("path"));
+      enteredLocations.append("title").text(function (d) { return d.tooltip; });
+      locations.select("title").text(function (d) { return d.tooltip; });
       locations.exit().remove();
+
+      var displayCharacters = dataset.characters.slice().sort(function (a, b) {
+        var ay = isFinite(+a.birthYear) ? +a.birthYear : Infinity;
+        var by = isFinite(+b.birthYear) ? +b.birthYear : Infinity;
+        if (ay !== by) return ay - by;
+        var an = a && a.name ? a.name : String(a.id);
+        var bn = b && b.name ? b.name : String(b.id);
+        return an < bn ? -1 : (an > bn ? 1 : 0);
+      });
+
+      function closestCharacterPoint(character, x) {
+        if (!character || !character.d3 || !character.d3.points || character.d3.points.length === 0) return null;
+        var best = character.d3.points[0];
+        var bestDist = Math.abs(best.x - x);
+        character.d3.points.forEach(function (point) {
+          var dist = Math.abs(point.x - x);
+          if (dist < bestDist) {
+            best = point;
+            bestDist = dist;
+          }
+        });
+        return best;
+      }
+
+      function roughTextWidth(text, fontSize) {
+        var width = 0;
+        String(text || "").split("").forEach(function (ch) {
+          width += /[ -~]/.test(ch) ? fontSize * 0.55 : fontSize;
+        });
+        return Math.max(fontSize * 2, width);
+      }
+
+      function labelNearAnyLine(item, fontSize) {
+        var w = roughTextWidth(item.name, fontSize);
+        var box = {
+          x0: item.x - w / 2 - 8,
+          x1: item.x + w / 2 + 8,
+          y0: item.y - fontSize - 8,
+          y1: item.y + 7
+        };
+        return dataset.characters.some(function (character) {
+          var point = closestCharacterPoint(character, item.x);
+          if (!point) return false;
+          return point.x >= box.x0 && point.x <= box.x1 && point.y >= box.y0 && point.y <= box.y1;
+        });
+      }
+
+      function addLocationLabel(labels, occupied, item) {
+        if (!item || !isFinite(item.x) || !isFinite(item.y)) return;
+        var y = item.y;
+        var tries = 0;
+        while (tries < 8) {
+          item.y = y;
+          var hit = occupied.some(function (box) {
+            return Math.abs(box.x - item.x) < 120 && Math.abs(box.y - y) < 18;
+          }) || labelNearAnyLine(item, 17);
+          if (!hit) break;
+          y -= 18;
+          tries++;
+        }
+        if (y < options.svg.topPadding - 28) y = options.svg.topPadding - 28;
+        item.y = y;
+        occupied.push({ x: item.x, y: item.y });
+        labels.push(item);
+      }
+
+      function buildLocationLabelItems(ds, bands) {
+        var labels = [];
+        var occupied = [];
+        bands.forEach(function (band) {
+          if (!band || !band.points || band.points.length === 0 || !band.location) return;
+          var first = band.points[0];
+          var last = band.points[band.points.length - 1];
+          var topY = d3.min(band.points, function (p) { return p.top.y; });
+          addLocationLabel(labels, occupied, {
+            key: band.key + "-label",
+            type: "band",
+            name: band.location.name,
+            x: (first.top.x + last.top.x) / 2,
+            y: topY - options.locations.padding - 6
+          });
+        });
+
+        ds.sessions.forEach(function (sess, sid) {
+          if (!sess.members || sess.members.length !== 1) return;
+          var loc = ds.locations[sess.location];
+          var character = ds.characters.filter(function (c) { return c.id === sess.members[0]; })[0];
+          if (!loc || !character || !character.d3 || !character.d3.points) return;
+          var midActual = (sess.start + sess.end) / 2;
+          var localT = midActual - ds.d3.timeStart;
+          var x = xForTimeIndex(localT);
+          var p = closestCharacterPoint(character, x);
+          if (!p) return;
+          addLocationLabel(labels, occupied, {
+            key: "single-session-" + sid + "-label",
+            type: "single",
+            name: loc.name,
+            x: x,
+            y: p.y - 16
+          });
+        });
+
+        return labels;
+      }
 
       function setLocationNamesAttributes(locationNames) {
         return locationNames
-          .attr("class", options.locations.labelClass)
-          .attr("x", options.locations.labelX)
-          .attr("y", function (d) {
-            if (!d || !d.d3 || !d.d3.points || d.d3.points.length === 0) return options.locations.labelDy;
-            return d.d3.points[0].top.y - options.locations.padding + options.locations.labelDy;
+          .attr("class", function (d) {
+            return options.locations.labelClass + " " + (d.type === "band" ? "bandLabel" : "singleLabel");
           })
+          .attr("x", function (d) { return d.x; })
+          .attr("y", function (d) { return d.y; })
+          .attr("text-anchor", "middle")
           .text(function (d) { return d.name; });
       }
 
-      function pickLabelLocations(locations) {
-        var byBase = {};
-        locations.forEach(function (loc) {
-          if (!loc || !loc.d3 || !loc.d3.points || loc.d3.points.length === 0) return;
-          var base = (loc.baseId !== undefined && loc.baseId !== null) ? loc.baseId : loc.id;
-          var firstX = loc.d3.points[0].top.x;
-          if (!byBase[base] || firstX < byBase[base].firstX) {
-            byBase[base] = { loc: loc, firstX: firstX };
-          }
-        });
-        return Object.keys(byBase).map(function (k) { return byBase[k].loc; });
-      }
-
-      var labelLocations = pickLabelLocations(dataset.locations);
+      var labelLocations = buildLocationLabelItems(dataset, locationBands);
       var locationNames = svg.selectAll("." + options.locations.labelClass)
-        .data(labelLocations, function (d) { return (d.baseId !== undefined && d.baseId !== null) ? d.baseId : d.id; });
+        .data(labelLocations, function (d) { return d.key; });
       setLocationNamesAttributes(locationNames.transition().duration(options.animation.transitionDuration));
       setLocationNamesAttributes(
         locationNames.enter()
@@ -1306,9 +1424,22 @@
         function buildSessionBands(ds) {
           var bands = [];
           var timeStart = (ds.d3 && typeof ds.d3.timeStart === "number") ? ds.d3.timeStart : 0;
+          var orderedSessions = ds.sessions.slice().sort(function (a, b) {
+            var aStart = a.startYear !== undefined ? +a.startYear : timeValueForIndex(a.start);
+            var bStart = b.startYear !== undefined ? +b.startYear : timeValueForIndex(b.start);
+            if (aStart !== bStart) return aStart - bStart;
+            var aEnd = a.endYear !== undefined ? +a.endYear : timeValueForIndex(a.end);
+            var bEnd = b.endYear !== undefined ? +b.endYear : timeValueForIndex(b.end);
+            if (aEnd !== bEnd) return aEnd - bEnd;
+            var aLoc = ds.locations[a.location];
+            var bLoc = ds.locations[b.location];
+            var an = aLoc && aLoc.name ? aLoc.name : "";
+            var bn = bLoc && bLoc.name ? bLoc.name : "";
+            return an < bn ? -1 : (an > bn ? 1 : 0);
+          });
 
-          for (var sid = 0; sid < ds.sessions.length; sid++) {
-            var sess = ds.sessions[sid];
+          for (var sid = 0; sid < orderedSessions.length; sid++) {
+            var sess = orderedSessions[sid];
             var members = sess.members || [];
             var color = blendColorForMembers(members);
             var seg = [];
@@ -1318,7 +1449,7 @@
               var actual = timeStart + t;
               if (!(sess.start <= actual && actual < sess.end)) {
                 if (seg.length > 0) {
-                  bands.push({ key: "s" + sid + "-" + segIndex, sid: sid, color: color, points: seg });
+                  bands.push({ key: "s" + sess.id + "-" + segIndex, sid: sess.id, color: color, points: seg });
                   seg = [];
                   segIndex++;
                 }
@@ -1340,14 +1471,14 @@
               var half = Math.max(1, (members.length * options.bundle.lineWidth) / 2);
 
               seg.push({
-                x: horizontalScale(t),
+                x: xForTimeIndex(t),
                 top: center - half,
                 bottom: center + half
               });
             }
 
             if (seg.length > 0) {
-              bands.push({ key: "s" + sid + "-" + segIndex, sid: sid, color: color, points: seg });
+              bands.push({ key: "s" + sess.id + "-" + segIndex, sid: sess.id, color: color, points: seg });
             }
           }
           return bands;
@@ -1372,6 +1503,30 @@
         svg.selectAll(".sessionBand").remove();
       }
 
+      // Evaluates storylineCurve exactly, so bands/branches sit on the drawn lines.
+      function yAtXFromPoints(points, x) {
+        if (!points || points.length === 0) return null;
+        var sorted = points.slice().sort(function (a, b) { return a.x - b.x; });
+        if (x <= sorted[0].x) return sorted[0].y;
+        for (var pi = 0; pi < sorted.length - 1; pi++) {
+          var a = sorted[pi];
+          var b = sorted[pi + 1];
+          if (a.x <= x && x <= b.x) {
+            var span = b.x - a.x;
+            var u = Math.abs(span) < 1e-9 ? 0 : (x - a.x) / span;
+            // Bezier x(t) = 1.5t - 1.5t^2 + t^3 is strictly increasing; bisect for t.
+            var lo = 0, hi = 1;
+            for (var it = 0; it < 30; it++) {
+              var t = (lo + hi) / 2;
+              if (1.5 * t - 1.5 * t * t + t * t * t < u) lo = t; else hi = t;
+            }
+            t = (lo + hi) / 2;
+            return a.y + (b.y - a.y) * (3 * t * t - 2 * t * t * t);
+          }
+        }
+        return sorted[sorted.length - 1].y;
+      }
+
       var line_function = d3.svg.line().interpolate(options.characters.interpolation)
         .x(function (d) { return d.x; })
         .y(function (d) { return d.y; });
@@ -1389,9 +1544,9 @@
       }
 
       if (!(options.bundle && options.bundle.enabled)) {
-        var lines = svg.selectAll("." + options.characters.class).data(dataset.characters);
+        var lines = svg.selectAll("." + options.characters.class).data(displayCharacters, function (d) { return d.name || d.id; });
         setCharacterLinesAttributes(lines.transition().duration(options.animation.transitionDuration));
-        setCharacterLinesAttributes(lines.enter().append("path"))
+        var enteredLines = setCharacterLinesAttributes(lines.enter().append("path"))
           .on("click", function (d) {
 
             toggleCharacterHighlight(d);
@@ -1404,32 +1559,400 @@
 
             d3.event.stopPropagation();
           });
+        enteredLines.append("title").text(function (d) { return d.name; });
+        lines.select("title").text(function (d) { return d.name; });
         lines.exit().remove();
       } else {
         svg.selectAll("." + options.characters.class).remove();
       }
 
+      function renderSecondaryBranches(dataset, options) {
+        var groupSel = svg.selectAll(".secondaryLineGroup").data([0]);
+        groupSel.enter().append("g").attr("class", "secondaryLineGroup");
+        var secondaryLine = d3.svg.line().interpolate(options.characters.interpolation)
+          .x(function (d) { return d.x; })
+          .y(function (d) { return d.y; });
+
+        var entries = (dataset.secondarySessions || []).map(function (entry) {
+          var character = dataset.characters.filter(function (c) { return c.id === entry.character; })[0];
+          var location = dataset.locations[entry.location];
+          if (!character || !character.d3 || !character.d3.points || !character.d3.points.length || !location) return null;
+          var xStart = eventX(+entry.startYear);
+          var xEnd = eventX(+entry.endYear);
+          if (xStart === null || xEnd === null || xEnd <= xStart) return null;
+          var mid = (xStart + xEnd) / 2;
+          // Read from the already-computed in-memory point arrays (yAtXFromPoints)
+          // instead of querying the live SVG path (pointOnPathAtX does a linear
+          // getPointAtLength scan over the whole path, which is very expensive
+          // when called this many times per secondary session).
+          var midMainY = yAtXFromPoints(character.d3.points, mid);
+          if (midMainY === null) return null;
+
+          // Greedy row search: nudge the branch up/down from the main line just far
+          // enough to clear other characters' lines near the middle of the overlap,
+          // without touching the QP-optimized main layout at all.
+          var rowHeight = (options.svg && options.svg.rowHeight) || 36;
+          var candidateOffsets = [rowHeight * 0.65, -rowHeight * 0.65, rowHeight * 1.3, -rowHeight * 1.3];
+          var offset = candidateOffsets[0];
+          for (var oi = 0; oi < candidateOffsets.length; oi++) {
+            var candidateY = midMainY + candidateOffsets[oi];
+            var clear = dataset.characters.every(function (other) {
+              if (other.id === character.id || !other.d3 || !other.d3.points || !other.d3.points.length) return true;
+              var otherY = yAtXFromPoints(other.d3.points, mid);
+              return otherY === null || Math.abs(otherY - candidateY) > rowHeight * 0.4;
+            });
+            if (clear) { offset = candidateOffsets[oi]; break; }
+          }
+
+          var steps = Math.max(6, Math.min(40, Math.round((xEnd - xStart) / 18)));
+          var points = [];
+          for (var s = 0; s <= steps; s++) {
+            var t = s / steps;
+            var x = xStart + (xEnd - xStart) * t;
+            var baseY = yAtXFromPoints(character.d3.points, x);
+            if (baseY === null) baseY = midMainY;
+            // ease so the branch splits away from and merges back into the main line
+            var ease = Math.sin(Math.PI * t);
+            points.push({ x: x, y: baseY + offset * ease });
+          }
+          return {
+            key: entry.character + "-" + entry.location + "-" + entry.startYear,
+            color: character.d3.color,
+            locationName: location.name,
+            points: points,
+            labelX: mid,
+            labelY: midMainY + offset
+          };
+        }).filter(function (x) { return x; });
+
+        var lines2 = svg.select(".secondaryLineGroup").selectAll(".secondaryLine").data(entries, function (d) { return d.key; });
+        lines2.enter().append("path").attr("class", "secondaryLine").append("title");
+        lines2
+          .attr("d", function (d) { return secondaryLine(d.points); })
+          .attr("fill", "none")
+          .attr("stroke", function (d) { return d.color; })
+          .attr("stroke-width", options.characters.strokeWidth * 0.5);
+        lines2.select("title").text(function (d) { return d.locationName; });
+        lines2.exit().remove();
+
+        var labels2 = svg.select(".secondaryLineGroup").selectAll(".secondaryLineLabel").data(entries, function (d) { return d.key; });
+        labels2.enter().append("text").attr("class", "secondaryLineLabel");
+        labels2
+          .attr("x", function (d) { return d.labelX; })
+          .attr("y", function (d) { return d.labelY - 8; })
+          .attr("text-anchor", "middle")
+          .text(function (d) { return d.locationName; });
+        labels2.exit().remove();
+      }
+
+      if (!(options.bundle && options.bundle.enabled)) {
+        renderSecondaryBranches(dataset, options);
+      } else {
+        svg.selectAll(".secondaryLineGroup").remove();
+      }
+
+      function firstPoint(character) {
+        if (!character || !character.d3 || !character.d3.points || character.d3.points.length === 0) {
+          return { x: leftGutter, y: options.svg.topPadding };
+        }
+        return character.d3.points[0];
+      }
+
+      function lastPoint(character) {
+        if (!character || !character.d3 || !character.d3.points || character.d3.points.length === 0) {
+          return { x: leftGutter, y: options.svg.topPadding };
+        }
+        return character.d3.points[character.d3.points.length - 1];
+      }
+
+      function setLifeMarkerAttributes(markers, icon, pointFn, dx) {
+        markers
+          .attr("class", function () { return "lifeMarker " + (icon === "🎂" ? "birthMarker" : "deathMarker"); })
+          .attr("transform", function (d) {
+            var p = pointFn(d);
+            return "translate(" + (p.x + dx) + "," + p.y + ")";
+          });
+        markers.select("rect")
+          .attr("x", -14)
+          .attr("y", -14)
+          .attr("width", 28)
+          .attr("height", 28);
+        markers.select("text")
+          .attr("class", "lifeEvent")
+          .attr("x", 0)
+          .attr("y", 1)
+          .text(icon);
+        return markers;
+      }
+
+      var birthIcons = svg.selectAll(".birthMarker").data(displayCharacters, function (d) { return d.name || d.id; });
+      var birthEnter = birthIcons.enter().append("g").attr("class", "lifeMarker birthMarker");
+      birthEnter.append("rect");
+      birthEnter.append("text");
+      setLifeMarkerAttributes(birthIcons, "🎂", firstPoint, -14);
+      setLifeMarkerAttributes(birthEnter, "🎂", firstPoint, -14);
+      svg.selectAll(".birthMarker").each(function (d) {
+        var title = d3.select(this).select("title");
+        if (title.empty()) title = d3.select(this).append("title");
+        title.text(d.name + " / 誕生 " + (d.birthYear || ""));
+      });
+      birthIcons.exit().remove();
+
+      var deathIcons = svg.selectAll(".deathMarker").data(displayCharacters, function (d) { return d.name || d.id; });
+      var deathEnter = deathIcons.enter().append("g").attr("class", "lifeMarker deathMarker");
+      deathEnter.append("rect");
+      deathEnter.append("text");
+      setLifeMarkerAttributes(deathIcons, "⚰", lastPoint, 14);
+      setLifeMarkerAttributes(deathEnter, "⚰", lastPoint, 14);
+      svg.selectAll(".deathMarker").each(function (d) {
+        var title = d3.select(this).select("title");
+        if (title.empty()) title = d3.select(this).append("title");
+        title.text(d.name + " / 死没 " + (d.deathYear || ""));
+      });
+      deathIcons.exit().remove();
+
+      function eventX(year) {
+        if (!dataset.timeLabels || dataset.timeLabels.length === 0) return null;
+        var labels = dataset.timeLabels.map(function (d) { return +d; });
+        if (!isFinite(year) || year < labels[0] || year > labels[labels.length - 1]) return null;
+        for (var ei = 0; ei < labels.length - 1; ei++) {
+          if (year >= labels[ei] && year <= labels[ei + 1]) {
+            var ratio = (year - labels[ei]) / Math.max(1e-9, labels[ei + 1] - labels[ei]);
+            return horizontalScale(year);
+          }
+        }
+        return horizontalScale(labels[labels.length - 1]);
+      }
+
+      function pointOnPathAtX(character, x) {
+        if (!character || x === null) return null;
+        var path = document.getElementById(idPrefix + options.characters.class + character.id);
+        if (!path || typeof path.getTotalLength !== "function") return null;
+        var len = path.getTotalLength();
+        if (!isFinite(len) || len <= 0) return null;
+
+        var samples = Math.max(120, Math.ceil(len / 6));
+        var prev = path.getPointAtLength(0);
+        var best = prev;
+        for (var step = 1; step <= samples; step++) {
+          var cur = path.getPointAtLength((len * step) / samples);
+          if (Math.abs(cur.x - x) < Math.abs(best.x - x)) best = cur;
+          if ((prev.x <= x && x <= cur.x) || (cur.x <= x && x <= prev.x)) {
+            var span = cur.x - prev.x;
+            var ratio = Math.abs(span) < 1e-9 ? 0 : (x - prev.x) / span;
+            return {
+              x: x,
+              y: prev.y + (cur.y - prev.y) * ratio
+            };
+          }
+          prev = cur;
+        }
+        return { x: x, y: best.y };
+      }
+
+      var workEvents = (dataset.events || []).map(function (event) {
+        var character = dataset.characters.filter(function (c) { return c.id === event.character; })[0];
+        if (!character || !character.d3 || !character.d3.points || character.d3.points.length === 0) return null;
+        var x = eventX(+event.year);
+        var pathPoint = pointOnPathAtX(character, x);
+        if (x === null || pathPoint === null) return null;
+        return {
+          x: x,
+          y: pathPoint.y,
+          title: event.title,
+          year: event.year,
+          characterName: character.name,
+          color: character.d3.color
+        };
+      }).filter(function (event) { return !!event; });
+
+      function estimateLabelWidth(text, fontSize) {
+        var width = 0;
+        String(text || "").split("").forEach(function (ch) {
+          width += /[ -~]/.test(ch) ? fontSize * 0.55 : fontSize;
+        });
+        return Math.max(16, width);
+      }
+
+      function boxesOverlap(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+
+      function buildWorkEventLabelLayout(events, placeLabels) {
+        var occupied = [];
+        placeLabels.forEach(function (label) {
+          var w = estimateLabelWidth(label.name, 17);
+          occupied.push({ x: label.x - w / 2, y: label.y - 14, w: w, h: 16 });
+        });
+
+        function labelBoxNearLine(box) {
+          var x = box.x + box.w / 2;
+          return dataset.characters.some(function (character) {
+            var p = pointOnPathAtX(character, x);
+            if (!p) return false;
+            return p.x >= box.x - 4 && p.x <= box.x + box.w + 4 &&
+              p.y >= box.y - 8 && p.y <= box.y + box.h + 8;
+          });
+        }
+
+        events.slice().sort(function (a, b) {
+          if (a.x !== b.x) return a.x - b.x;
+          return a.y - b.y;
+        }).forEach(function (event) {
+          var fontSize = 12;
+          var w = estimateLabelWidth(event.title, fontSize);
+          var h = 15;
+          var candidates = [
+            { dx: 7, dy: -9 },
+            { dx: 7, dy: -23 },
+            { dx: 7, dy: 17 },
+            { dx: -w - 7, dy: -9 },
+            { dx: -w - 7, dy: 17 },
+            { dx: 7, dy: -37 },
+            { dx: -w - 7, dy: -23 },
+            { dx: 7, dy: 31 },
+            { dx: -w - 7, dy: 31 }
+          ];
+          var chosen = null;
+          for (var ci = 0; ci < candidates.length; ci++) {
+            var c = candidates[ci];
+            var box = { x: event.x + c.dx, y: event.y + c.dy - h, w: w, h: h };
+            if (box.y < options.svg.topPadding - 34) continue;
+            if (!occupied.some(function (taken) { return boxesOverlap(box, taken); }) && !labelBoxNearLine(box)) {
+              chosen = { x: event.x + c.dx, y: event.y + c.dy, box: box };
+              break;
+            }
+          }
+          if (!chosen) {
+            var fallbackY = event.y - 9;
+            var tries = 0;
+            var fallbackBox = { x: event.x + 7, y: fallbackY - h, w: w, h: h };
+            while (tries < 12 &&
+              (occupied.some(function (taken) { return boxesOverlap(fallbackBox, taken); }) || labelBoxNearLine(fallbackBox))) {
+              fallbackY -= 14;
+              fallbackBox.y = fallbackY - h;
+              tries++;
+            }
+            chosen = { x: event.x + 7, y: fallbackY, box: fallbackBox };
+          }
+          event.labelX = chosen.x;
+          event.labelY = chosen.y;
+          occupied.push(chosen.box);
+        });
+      }
+
+      buildWorkEventLabelLayout(workEvents, labelLocations);
+
+      var eventSel = svg.selectAll(".workEvent").data(workEvents, function (d) {
+        return d.characterName + "-" + d.year + "-" + d.title;
+      });
+
+      eventSel.enter()
+        .append("circle")
+        .attr("class", "workEvent")
+        .attr("r", 5)
+        .append("title");
+
+      svg.selectAll(".workEvent")
+        .attr("cx", function (d) { return d.x; })
+        .attr("cy", function (d) { return d.y; })
+        .attr("fill", function (d) { return d.color; })
+        .select("title")
+        .text(function (d) { return d.characterName + " / " + d.year + " / " + d.title; });
+
+      eventSel.exit().remove();
+
+      var eventLabelSel = svg.selectAll(".workEventLabel").data(workEvents, function (d) {
+        return d.characterName + "-" + d.year + "-" + d.title;
+      });
+
+      eventLabelSel.enter()
+        .append("text")
+        .attr("class", "workEventLabel");
+
+      eventLabelSel
+        .attr("x", function (d) { return d.labelX; })
+        .attr("y", function (d) { return d.labelY; })
+        .text(function (d) { return d.title; });
+
+      eventLabelSel.exit().remove();
+
+      function resolveRenderedLabelOverlaps() {
+        var fixed = [];
+        svg.selectAll(".name").each(function () {
+          fixed.push(this);
+        });
+
+        function nodeBox(node) {
+          return node.getBBox();
+        }
+
+        function overlapsBox(a, b) {
+          return a.x < b.x + b.width && a.x + a.width > b.x &&
+            a.y < b.y + b.height && a.y + a.height > b.y;
+        }
+
+        function moveLabelAway(node, step, limit) {
+          var sel = d3.select(node || this);
+          var y = parseFloat(sel.attr("y"));
+          var tries = 0;
+          while (tries < limit) {
+            var box = nodeBox(node || this);
+            var hit = fixed.some(function (other) { return overlapsBox(box, nodeBox(other)); });
+            if (!hit) break;
+            y -= step;
+            sel.attr("y", y);
+            tries++;
+          }
+          fixed.push(node || this);
+        }
+
+        svg.selectAll(".locationLabel").each(function () {
+          moveLabelAway(this, 16, 10);
+        });
+
+        svg.selectAll(".workEventLabel").each(function () {
+          moveLabelAway(this, 14, 12);
+        });
+      }
+
+      function buildCharacterLabelY(characters) {
+        var sorted = characters.slice().sort(function (a, b) {
+          return firstPoint(a).y - firstPoint(b).y;
+        });
+        var labelY = {};
+        var last = -Infinity;
+        sorted.forEach(function (character) {
+          var y = firstPoint(character).y + 4;
+          if (y - last < 22) y = last + 22;
+          labelY[character.id] = y;
+          last = y;
+        });
+        return labelY;
+      }
+
+      var characterLabelY = buildCharacterLabelY(dataset.characters);
+
       function setCharacterNamesAttributes(names) {
         return names
           .attr("class", options.characters.labelClass)
-          .attr("xlink:href", function (d) { return "#" + idPrefix + options.characters.class + d.id; })
+          .attr("x", function (d) { return firstPoint(d).x - 36; })
+          .attr("y", function (d) { return characterLabelY[d.id] || (firstPoint(d).y + 4); })
+          .attr("text-anchor", "end")
+          .style("font-size", "17px")
           .text(function (d) { return d.name; });
       }
 
       if (!(options.bundle && options.bundle.enabled)) {
-        var names = svg.selectAll("." + options.characters.labelClass).data(dataset.characters);
+        var names = svg.selectAll("." + options.characters.labelClass).data(displayCharacters, function (d) { return d.name || d.id; });
         setCharacterNamesAttributes(names.transition().duration(options.animation.transitionDuration));
-        setCharacterNamesAttributes(
-          names.enter()
-            .append("text")
-            .attr("x", options.characters.labelX)
-            .attr("dy", options.characters.labelDy)
-            .append("textPath")
-        );
+        setCharacterNamesAttributes(names.enter().append("text"));
         names.exit().remove();
       } else {
         svg.selectAll("." + options.characters.labelClass).remove();
       }
+
+      resolveRenderedLabelOverlaps();
     }
 
     // annotateDataset はあなたの貼ったまま（省略せず残してOK）
@@ -1711,6 +2234,25 @@
         return node.weight;
       }
 
+      function sessionNodeSortKey(node) {
+        var session = dataset.sessions.filter(function (s) { return s.id === node.sid; })[0];
+        if (!session) return "";
+        var start = session.startYear !== undefined ? +session.startYear : timeValueForIndex(session.start);
+        var end = session.endYear !== undefined ? +session.endYear : timeValueForIndex(session.end);
+        var location = dataset.locations[session.location];
+        var locationName = location && location.name ? location.name : "";
+        var memberNames = (session.members || []).map(function (cid) {
+          var character = dataset.characters.filter(function (c) { return c.id === cid; })[0];
+          return character && character.name ? character.name : String(cid);
+        }).sort().join("|");
+        return [start, end, locationName, memberNames].join("::");
+      }
+
+      function entityNodeSortKey(node) {
+        var character = dataset.characters.filter(function (c) { return c.id === node.id; })[0];
+        return character && character.name ? character.name : String(node.id);
+      }
+
       // node の子のうち「動かしていいノード」だけを barycenter(=weight) で安定ソート
       function barycenterSortChildren(node) {
         if (!node || !node.children || node.children.length <= 1) return;
@@ -1738,7 +2280,9 @@
             var wa = (a.weight !== undefined) ? a.weight : 1e18;
             var wb = (b.weight !== undefined) ? b.weight : 1e18;
             if (wa !== wb) return wa - wb;
-            return (a.sid || 0) - (b.sid || 0);
+            var ak = sessionNodeSortKey(a);
+            var bk = sessionNodeSortKey(b);
+            return ak < bk ? -1 : (ak > bk ? 1 : 0);
           });
 
           node.children = locKids.concat(sessKids).concat(rest);
@@ -1751,7 +2295,9 @@
             var wa = (a.weight !== undefined) ? a.weight : 1e18;
             var wb = (b.weight !== undefined) ? b.weight : 1e18;
             if (wa !== wb) return wa - wb;
-            return (a.id || 0) - (b.id || 0);
+            var ak = entityNodeSortKey(a);
+            var bk = entityNodeSortKey(b);
+            return ak < bk ? -1 : (ak > bk ? 1 : 0);
           });
           return;
         }
@@ -1796,7 +2342,9 @@
             var wa = (a.weight !== undefined) ? a.weight : 1e18;
             var wb = (b.weight !== undefined) ? b.weight : 1e18;
             if (wa !== wb) return wa - wb;
-            return (a.sid || 0) - (b.sid || 0);
+            var ak = sessionNodeSortKey(a);
+            var bk = sessionNodeSortKey(b);
+            return ak < bk ? -1 : (ak > bk ? 1 : 0);
           });
 
           node.children = locKids.concat(sessKids).concat(rest);
@@ -1809,7 +2357,9 @@
             var wa = (a.weight !== undefined) ? a.weight : 1e18;
             var wb = (b.weight !== undefined) ? b.weight : 1e18;
             if (wa !== wb) return wa - wb;
-            return (a.id || 0) - (b.id || 0);
+            var ak = entityNodeSortKey(a);
+            var bk = entityNodeSortKey(b);
+            return ak < bk ? -1 : (ak > bk ? 1 : 0);
           });
           return;
         }
@@ -2088,6 +2638,59 @@
       }
 
 
+      function enforceSessionContiguity(moment, referenceSortedCharacters) {
+        if (!moment || !moment.sortedCharacters || !moment.locations) return;
+        var refRank = buildRefRank(referenceSortedCharacters || moment.sortedCharacters);
+        var fallback = moment.sortedCharacters.length + 9999;
+
+        function rankOf(cid) {
+          return refRank[cid] !== undefined ? refRank[cid] : fallback + cid;
+        }
+
+        var blocks = [];
+        var used = {};
+
+        moment.locations.forEach(function (location) {
+          if (!location || !location.sessions) return;
+          location.sessions.forEach(function (sid) {
+            var sess = dataset.sessions[sid];
+            if (!sess || !sess.members || sess.members.length === 0) return;
+            var members = sess.members.filter(function (cid) {
+              return moment.sortedCharacters.indexOf(cid) !== -1;
+            });
+            if (members.length === 0) return;
+            members.sort(function (a, b) {
+              var ra = rankOf(a);
+              var rb = rankOf(b);
+              if (ra !== rb) return ra - rb;
+              return a - b;
+            });
+            members.forEach(function (cid) { used[cid] = true; });
+            var avg = members.reduce(function (sum, cid) { return sum + rankOf(cid); }, 0) / members.length;
+            blocks.push({ avg: avg, members: members });
+          });
+        });
+
+        moment.sortedCharacters.forEach(function (cid) {
+          if (used[cid]) return;
+          blocks.push({ avg: rankOf(cid), members: [cid] });
+        });
+
+        blocks.sort(function (a, b) {
+          if (a.avg !== b.avg) return a.avg - b.avg;
+          return a.members[0] - b.members[0];
+        });
+
+        var ordered = [];
+        blocks.forEach(function (block) {
+          block.members.forEach(function (cid) {
+            if (ordered.indexOf(cid) === -1) ordered.push(cid);
+          });
+        });
+        moment.sortedCharacters = ordered;
+      }
+
+
       // 参照フレームを使って moment.relationshipRoot を並べ替え、moment.sortedCharacters/locations を更新
       function sortMomentByRelationshipTree(moment, referenceSortedCharacters, options) {
         if (!referenceSortedCharacters) referenceSortedCharacters = [];
@@ -2120,12 +2723,33 @@
         }
         applyFixedLocationOrder(moment.relationshipRoot, locRank);
 
-        // 3) （ここで sortNonLocationNodesBottomUp は不要になる）
-        // sortNonLocationNodesBottomUp(moment.relationshipRoot);  // ←消してOK
+        function stabilizeSessionOrder(node) {
+          if (!node || !node.children) return;
+          if (node.type === "session") {
+            node.children.sort(function (a, b) {
+              if (!a || !b || a.type !== "entity" || b.type !== "entity") return 0;
+              var ra = (refRank[a.id] !== undefined) ? refRank[a.id] : fallbackWeight;
+              var rb = (refRank[b.id] !== undefined) ? refRank[b.id] : fallbackWeight;
+              if (ra !== rb) return ra - rb;
+              var ba = (baseRank[a.id] !== undefined) ? baseRank[a.id] : fallbackWeight;
+              var bb = (baseRank[b.id] !== undefined) ? baseRank[b.id] : fallbackWeight;
+              if (ba !== bb) return ba - bb;
+              var ca = dataset.characters.filter(function (c) { return c.id === a.id; })[0];
+              var cb = dataset.characters.filter(function (c) { return c.id === b.id; })[0];
+              var an = ca && ca.name ? ca.name : String(a.id);
+              var bn = cb && cb.name ? cb.name : String(b.id);
+              return an < bn ? -1 : (an > bn ? 1 : 0);
+            });
+          }
+          node.children.forEach(stabilizeSessionOrder);
+        }
+
+        stabilizeSessionOrder(moment.relationshipRoot);
 
         var ordered = [];
         collectEntitiesInOrder(moment.relationshipRoot, ordered);
         moment.sortedCharacters = ordered;
+        enforceSessionContiguity(moment, referenceSortedCharacters);
         rebuildMomentLocationsFromTree(moment);
 
         // ★追加：次回のために weightByChar を更新（現在の縦位置＝weight）
@@ -2162,12 +2786,18 @@
               var sa = (a.children ? a.children.length : 0);
               var sb = (b.children ? b.children.length : 0);
               if (sa !== sb) return sb - sa;
-              return (a.sid || 0) - (b.sid || 0);
+              var ak = sessionNodeSortKey(a);
+              var bk = sessionNodeSortKey(b);
+              return ak < bk ? -1 : (ak > bk ? 1 : 0);
             });
 
             sessions.forEach(function (sNode) {
               if (!sNode.children) sNode.children = [];
-              sNode.children.sort(function (ea, eb) { return (ea.id || 0) - (eb.id || 0); });
+              sNode.children.sort(function (ea, eb) {
+                var ak = entityNodeSortKey(ea);
+                var bk = entityNodeSortKey(eb);
+                return ak < bk ? -1 : (ak > bk ? 1 : 0);
+              });
             });
 
             node.children = sessions.concat(others);
@@ -2181,6 +2811,7 @@
         var ordered = [];
         collectEntitiesInOrder(moment.relationshipRoot, ordered);
         moment.sortedCharacters = ordered;
+        enforceSessionContiguity(moment, moment.sortedCharacters);
 
         rebuildMomentLocationsFromTree(moment);
       }
@@ -2407,7 +3038,11 @@
             var ra = (rank[a.id] !== undefined) ? rank[a.id] : 1e18;
             var rb = (rank[b.id] !== undefined) ? rank[b.id] : 1e18;
             if (ra !== rb) return ra - rb;
-            return a.id - b.id;
+            var aloc = dataset.locations[a.id];
+            var bloc = dataset.locations[b.id];
+            var an = aloc && aloc.name ? aloc.name : String(a.id);
+            var bn = bloc && bloc.name ? bloc.name : String(b.id);
+            return an < bn ? -1 : (an > bn ? 1 : 0);
           });
 
           node.children = otherKids.concat(locKids);
@@ -2716,6 +3351,127 @@
 
         if (stableCount >= (options.algorithm.stableNeeded || 1)) break;
       }
+
+      function getOrderedBlocksForMoment(ds, moment) {
+        if (!moment || !moment.sortedCharacters) return [];
+        var rank = buildRefRank(moment.sortedCharacters);
+        var blocks = [];
+        var used = {};
+
+        if (moment.locations) {
+          moment.locations.forEach(function (location) {
+            if (!location || !location.sessions) return;
+            location.sessions.forEach(function (sid) {
+              var sess = ds.sessions[sid];
+              if (!sess || !sess.members || sess.members.length === 0) return;
+              var members = sess.members.filter(function (cid) {
+                return rank[cid] !== undefined;
+              }).sort(function (a, b) {
+                return rank[a] - rank[b];
+              });
+              if (members.length === 0) return;
+              members.forEach(function (cid) { used[cid] = true; });
+              blocks.push({
+                key: "s" + sid,
+                sid: sid,
+                members: members,
+                rank: d3.min(members, function (cid) { return rank[cid]; })
+              });
+            });
+          });
+        }
+
+        moment.sortedCharacters.forEach(function (cid) {
+          if (used[cid]) return;
+          blocks.push({ key: "c" + cid, sid: -1, members: [cid], rank: rank[cid] });
+        });
+
+        blocks.sort(function (a, b) {
+          if (a.rank !== b.rank) return a.rank - b.rank;
+          return a.key < b.key ? -1 : 1;
+        });
+        return blocks;
+      }
+
+      function flattenBlocks(blocks) {
+        var out = [];
+        blocks.forEach(function (block) {
+          block.members.forEach(function (cid) {
+            if (out.indexOf(cid) === -1) out.push(cid);
+          });
+        });
+        return out;
+      }
+
+      function orderDistance(a, b) {
+        if (!a || !b || a.length < 2 || b.length < 2) return 0;
+        return kendallDistance(a, b).discordant;
+      }
+
+      function localOrderScore(ds, timeIndex, order) {
+        var smoothWeight = (options.algorithm && typeof options.algorithm.globalOrderSmoothWeight === "number")
+          ? options.algorithm.globalOrderSmoothWeight
+          : 0.65;
+        var score = 0;
+        var prev = timeIndex > 0 ? ds.d3.time[timeIndex - 1].sortedCharacters : null;
+        var next = timeIndex < ds.d3.time.length - 1 ? ds.d3.time[timeIndex + 1].sortedCharacters : null;
+
+        if (prev) score += orderDistance(prev, order) * (1 + smoothWeight);
+        if (next) score += orderDistance(order, next) * (1 + smoothWeight);
+
+        var base = ds.d3.time[timeIndex].d3 && ds.d3.time[timeIndex].d3.baseOrder;
+        if (base) score += orderDistance(base, order) * 0.08;
+        return score;
+      }
+
+      function optimizeGlobalBlockOrdering(ds) {
+        if (!ds || !ds.d3 || !ds.d3.time) return;
+        var passes = (options.algorithm && typeof options.algorithm.globalOrderOptimizePasses === "number")
+          ? options.algorithm.globalOrderOptimizePasses
+          : 0;
+        if (passes <= 0) return;
+
+        for (var pass = 0; pass < passes; pass++) {
+          var changed = false;
+          var start = pass % 2 === 0 ? 0 : ds.d3.time.length - 1;
+          var end = pass % 2 === 0 ? ds.d3.time.length : -1;
+          var step = pass % 2 === 0 ? 1 : -1;
+
+          for (var t = start; t !== end; t += step) {
+            var moment = ds.d3.time[t];
+            if (!moment || !moment.sortedCharacters || moment.sortedCharacters.length < 2) continue;
+            var blocks = getOrderedBlocksForMoment(ds, moment);
+            if (blocks.length < 2) continue;
+
+            var improved = true;
+            while (improved) {
+              improved = false;
+              for (var i = 0; i < blocks.length - 1; i++) {
+                var currentOrder = flattenBlocks(blocks);
+                var currentScore = localOrderScore(ds, t, currentOrder);
+                var candidate = blocks.slice();
+                var tmp = candidate[i];
+                candidate[i] = candidate[i + 1];
+                candidate[i + 1] = tmp;
+                var candidateOrder = flattenBlocks(candidate);
+                var candidateScore = localOrderScore(ds, t, candidateOrder);
+
+                if (candidateScore + 1e-9 < currentScore) {
+                  blocks = candidate;
+                  moment.sortedCharacters = candidateOrder;
+                  rebuildMomentLocationsFromTree(moment);
+                  changed = true;
+                  improved = true;
+                }
+              }
+            }
+          }
+
+          if (!changed) break;
+        }
+      }
+
+      optimizeGlobalBlockOrdering(bestDataset);
 
       // ============================================================
       // 5.3 Alignment (paper exact): session alignment (weighted LCS)
@@ -3027,7 +3783,7 @@
       // Build objective: 0.5 x^T Q x + q^T x
       // wiggle: sum (y(i,t+1)-y(i,t))^2
       // white : lambda * sum_{session-boundary} ((y_lo - y_up) - dout)^2
-      function buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight) {
+      function buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight, sessionStabilityWeight) {
         var n = varIx.nVar;
 
         // dense symmetric Q
@@ -3063,6 +3819,42 @@
         for (var cid = 0; cid < nChars; cid++) {
           for (var t = 0; t < nTimes - 1; t++) {
             addQuadDiff(varIx.idx(cid, t), varIx.idx(cid, t + 1), wWiggle);
+          }
+        }
+
+        // (1b) session stability: extra penalty, on top of the baseline wiggle
+        // above, for a character's frame-to-frame movement while it stays in
+        // the SAME shared (>=2 member) session block. The plain wiggle term
+        // treats every character equally, so when a dout/order constraint
+        // elsewhere in the diagram forces some movement, the solver is free
+        // to let it fall on a same-session pair if that happens to be
+        // cheaper system-wide — even though nothing about that pair's own
+        // membership changed. This term makes that specifically expensive,
+        // so the QP prefers absorbing unrelated changes elsewhere instead of
+        // drifting an already-stable session block.
+        var wSessionStability = (typeof sessionStabilityWeight === "number") ? sessionStabilityWeight : 0;
+        if (wSessionStability > 0) {
+          for (var ts = 0; ts < nTimes - 1; ts++) {
+            var momentA = ds.d3.time[ts], momentB = ds.d3.time[ts + 1];
+            if (!momentA || !momentB) continue;
+            var blocksA = getSessionBlocksAtTime(ds, momentA);
+            var blocksB = getSessionBlocksAtTime(ds, momentB);
+            var sidOfA = {}, sidOfB = {};
+            for (var bi2 = 0; bi2 < blocksA.length; bi2++) {
+              if (blocksA[bi2].sid === -1) continue;
+              var msA = blocksA[bi2].members;
+              for (var ii2 = 0; ii2 < msA.length; ii2++) sidOfA[msA[ii2]] = blocksA[bi2].sid;
+            }
+            for (var bj2 = 0; bj2 < blocksB.length; bj2++) {
+              if (blocksB[bj2].sid === -1) continue;
+              var msB = blocksB[bj2].members;
+              for (var jj2 = 0; jj2 < msB.length; jj2++) sidOfB[msB[jj2]] = blocksB[bj2].sid;
+            }
+            for (var cidKey in sidOfA) {
+              if (sidOfB[cidKey] !== undefined && sidOfB[cidKey] === sidOfA[cidKey]) {
+                addQuadDiff(varIx.idx(+cidKey, ts), varIx.idx(+cidKey, ts + 1), wSessionStability);
+              }
+            }
           }
         }
 
@@ -3295,47 +4087,72 @@
           M[i2][i2] += sigma;
         }
 
-        function solveLinear(M, b) {
-          // Gaussian elimination with partial pivot (dense)
-          // Copy to avoid destroying M
+        // M is the SAME matrix on every ADMM iteration (only the right-hand
+        // side changes), so factor it once with partial-pivot Gaussian
+        // elimination and reuse the factors instead of re-eliminating a
+        // fresh dense n x n system from scratch on every one of the up-to-
+        // maxIter iterations (this was previously an O(n^3) cost per
+        // iteration instead of O(n^2), and dominated render time for
+        // datasets with more than a handful of characters/time frames).
+        function factorizeLinear(M) {
           var A = new Array(n);
           for (var i = 0; i < n; i++) {
             A[i] = new Float64Array(n);
             A[i].set(M[i]);
           }
-          var x = new Float64Array(b);
-          // Forward elim
+          var piv = new Int32Array(n);
+          for (var i0 = 0; i0 < n; i0++) piv[i0] = i0;
+          var mult = new Array(n);
+          for (var k0 = 0; k0 < n; k0++) mult[k0] = new Float64Array(n);
+
           for (var k = 0; k < n; k++) {
-            // pivot
-            var piv = k;
+            var pivRow = k;
             var best = Math.abs(A[k][k]);
             for (var i = k + 1; i < n; i++) {
               var v = Math.abs(A[i][k]);
-              if (v > best) { best = v; piv = i; }
+              if (v > best) { best = v; pivRow = i; }
             }
-            if (piv !== k) {
-              var tmp = A[k]; A[k] = A[piv]; A[piv] = tmp;
-              var t2 = x[k]; x[k] = x[piv]; x[piv] = t2;
+            if (pivRow !== k) {
+              var tmp = A[k]; A[k] = A[pivRow]; A[pivRow] = tmp;
+              var tmpM = mult[k]; mult[k] = mult[pivRow]; mult[pivRow] = tmpM;
+              var tp = piv[k]; piv[k] = piv[pivRow]; piv[pivRow] = tp;
             }
             var akk = A[k][k];
             if (Math.abs(akk) < 1e-12) akk = (akk >= 0 ? 1e-12 : -1e-12);
 
             for (var i = k + 1; i < n; i++) {
               var f = A[i][k] / akk;
+              mult[i][k] = f;
               if (f === 0) continue;
               for (var j = k; j < n; j++) A[i][j] -= f * A[k][j];
-              x[i] -= f * x[k];
             }
           }
-          // Back-sub
-          for (var i = n - 1; i >= 0; i--) {
-            var s = x[i];
-            for (var j = i + 1; j < n; j++) s -= A[i][j] * x[j];
-            var aii = A[i][i];
+          return { U: A, mult: mult, piv: piv };
+        }
+
+        function solveWithFactors(factors, b) {
+          var U = factors.U, mult = factors.mult, piv = factors.piv;
+          var x = new Float64Array(n);
+          for (var i = 0; i < n; i++) x[i] = b[piv[i]];
+          for (var k = 0; k < n; k++) {
+            for (var i = k + 1; i < n; i++) {
+              var f = mult[i][k];
+              if (f !== 0) x[i] -= f * x[k];
+            }
+          }
+          for (var i2 = n - 1; i2 >= 0; i2--) {
+            var s = x[i2];
+            for (var j = i2 + 1; j < n; j++) s -= U[i2][j] * x[j];
+            var aii = U[i2][i2];
             if (Math.abs(aii) < 1e-12) aii = (aii >= 0 ? 1e-12 : -1e-12);
-            x[i] = s / aii;
+            x[i2] = s / aii;
           }
           return x;
+        }
+
+        var mFactors = factorizeLinear(M);
+        function solveLinear(M, b) {
+          return solveWithFactors(mFactors, b);
         }
 
         var x = new Float64Array(x0);
@@ -3568,8 +4385,11 @@
         var epsAbs = options.algorithm.epsAbs || 1e-6;
         var epsRel = options.algorithm.epsRel || 1e-6;
 
-        var wiggleWeight = 1.0;
-        var obj = buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight);
+        var wiggleWeight = options.algorithm.wiggleWeight || 1.0;
+        var sessionStabilityWeight = (typeof options.algorithm.sessionStabilityWeight === "number")
+          ? options.algorithm.sessionStabilityWeight
+          : 0;
+        var obj = buildObjective(ds, varIx, lambdaWhite, dout, wiggleWeight, sessionStabilityWeight);
         var Q = obj.Q;
         var q = obj.q;
 
@@ -3594,8 +4414,8 @@
             moment.d3.y[cid] = x[varIx.idx(cid, t)];
           }
         }
-      }
 
+      }
       // ---- debug: alignment constraint volume ----
       (function () {
         var totalPairs = 0, totalSegs = 0;
