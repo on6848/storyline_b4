@@ -1,0 +1,1670 @@
+{
+  "title": "日本近現代文学史: 啓蒙期・翻訳文学・政治小説",
+  "description": "Wikipedia「日本の近現代文学史」と各人物ページをもとに、指定作者の生涯線、同時期同所の所在地セッション、作品イベントをStoryFlow入力として整理したデータ。",
+  "timeLabels": [
+    "1830",
+    "1835",
+    "1840",
+    "1845",
+    "1850",
+    "1855",
+    "1860",
+    "1865",
+    "1870",
+    "1875",
+    "1880",
+    "1885",
+    "1890",
+    "1895",
+    "1900",
+    "1905",
+    "1910",
+    "1915",
+    "1920",
+    "1925",
+    "1930",
+    "1935",
+    "1940",
+    "1945"
+  ],
+  "placeGranularity": [
+    "国",
+    "地方",
+    "都道府県",
+    "市区町村",
+    "施設・拠点"
+  ],
+  "characters": [
+    {
+      "id": 0,
+      "name": "福澤諭吉",
+      "birthYear": 1835,
+      "deathYear": 1901
+    },
+    {
+      "id": 1,
+      "name": "坪内逍遥",
+      "birthYear": 1859.47123,
+      "deathYear": 1935.1589
+    },
+    {
+      "id": 2,
+      "name": "中江兆民",
+      "birthYear": 1847,
+      "deathYear": 1901
+    },
+    {
+      "id": 3,
+      "name": "中村正直",
+      "birthYear": 1832.47814,
+      "deathYear": 1891.43014
+    },
+    {
+      "id": 4,
+      "name": "川島忠之助",
+      "birthYear": 1853,
+      "deathYear": 1938
+    },
+    {
+      "id": 5,
+      "name": "矢野龍渓",
+      "birthYear": 1851,
+      "deathYear": 1931
+    },
+    {
+      "id": 6,
+      "name": "末広鉄腸",
+      "birthYear": 1849,
+      "deathYear": 1896
+    },
+    {
+      "id": 7,
+      "name": "二葉亭四迷",
+      "birthYear": 1864.25683,
+      "deathYear": 1909.35342
+    },
+    {
+      "id": 8,
+      "name": "尾崎紅葉",
+      "birthYear": 1868.08333,
+      "deathYear": 1903
+    }
+  ],
+  "locations": [
+    {
+      "id": 0,
+      "name": "日本"
+    },
+    {
+      "id": 1,
+      "name": "関東地方"
+    },
+    {
+      "id": 2,
+      "name": "東京都"
+    },
+    {
+      "id": 3,
+      "name": "港区"
+    },
+    {
+      "id": 4,
+      "name": "慶應義塾・三田"
+    },
+    {
+      "id": 5,
+      "name": "文京区"
+    },
+    {
+      "id": 6,
+      "name": "東京大学・東京専門学校"
+    },
+    {
+      "id": 7,
+      "name": "小石川・同人社"
+    },
+    {
+      "id": 8,
+      "name": "千代田区"
+    },
+    {
+      "id": 9,
+      "name": "政府・新聞社周辺"
+    },
+    {
+      "id": 10,
+      "name": "墨田区"
+    },
+    {
+      "id": 11,
+      "name": "本所"
+    },
+    {
+      "id": 12,
+      "name": "神奈川県"
+    },
+    {
+      "id": 13,
+      "name": "横浜市"
+    },
+    {
+      "id": 14,
+      "name": "横浜居留地・横浜正金銀行"
+    },
+    {
+      "id": 15,
+      "name": "横須賀市"
+    },
+    {
+      "id": 16,
+      "name": "横須賀製鉄所"
+    },
+    {
+      "id": 17,
+      "name": "中部地方"
+    },
+    {
+      "id": 18,
+      "name": "岐阜県"
+    },
+    {
+      "id": 19,
+      "name": "美濃加茂市"
+    },
+    {
+      "id": 20,
+      "name": "太田宿"
+    },
+    {
+      "id": 21,
+      "name": "高山市"
+    },
+    {
+      "id": 22,
+      "name": "飛騨高山"
+    },
+    {
+      "id": 23,
+      "name": "静岡県"
+    },
+    {
+      "id": 24,
+      "name": "静岡市"
+    },
+    {
+      "id": 25,
+      "name": "静岡学問所・大岩"
+    },
+    {
+      "id": 26,
+      "name": "熱海市"
+    },
+    {
+      "id": 27,
+      "name": "熱海"
+    },
+    {
+      "id": 28,
+      "name": "山梨県"
+    },
+    {
+      "id": 29,
+      "name": "甲府市"
+    },
+    {
+      "id": 30,
+      "name": "甲府徽典館"
+    },
+    {
+      "id": 31,
+      "name": "近畿地方"
+    },
+    {
+      "id": 32,
+      "name": "大阪府"
+    },
+    {
+      "id": 33,
+      "name": "大阪市"
+    },
+    {
+      "id": 34,
+      "name": "中津藩蔵屋敷・適塾"
+    },
+    {
+      "id": 67,
+      "name": "大阪慶應義塾"
+    },
+    {
+      "id": 35,
+      "name": "京都府"
+    },
+    {
+      "id": 36,
+      "name": "京都市"
+    },
+    {
+      "id": 37,
+      "name": "京都"
+    },
+    {
+      "id": 38,
+      "name": "四国地方"
+    },
+    {
+      "id": 39,
+      "name": "高知県"
+    },
+    {
+      "id": 40,
+      "name": "高知市"
+    },
+    {
+      "id": 41,
+      "name": "土佐・高知"
+    },
+    {
+      "id": 42,
+      "name": "愛媛県"
+    },
+    {
+      "id": 43,
+      "name": "宇和島市"
+    },
+    {
+      "id": 44,
+      "name": "宇和島藩・明倫館"
+    },
+    {
+      "id": 45,
+      "name": "徳島県"
+    },
+    {
+      "id": 46,
+      "name": "徳島市"
+    },
+    {
+      "id": 47,
+      "name": "徳島慶應義塾"
+    },
+    {
+      "id": 48,
+      "name": "九州地方"
+    },
+    {
+      "id": 49,
+      "name": "大分県"
+    },
+    {
+      "id": 50,
+      "name": "中津市"
+    },
+    {
+      "id": 51,
+      "name": "中津"
+    },
+    {
+      "id": 52,
+      "name": "佐伯市"
+    },
+    {
+      "id": 53,
+      "name": "佐伯"
+    },
+    {
+      "id": 54,
+      "name": "群馬県"
+    },
+    {
+      "id": 55,
+      "name": "富岡市"
+    },
+    {
+      "id": 56,
+      "name": "富岡製糸場"
+    },
+    {
+      "id": 57,
+      "name": "海外"
+    },
+    {
+      "id": 58,
+      "name": "欧州"
+    },
+    {
+      "id": 59,
+      "name": "イギリス"
+    },
+    {
+      "id": 60,
+      "name": "ロンドン"
+    },
+    {
+      "id": 61,
+      "name": "フランス"
+    },
+    {
+      "id": 62,
+      "name": "リヨン・パリ"
+    },
+    {
+      "id": 63,
+      "name": "北米・欧州"
+    },
+    {
+      "id": 64,
+      "name": "米欧旅行"
+    },
+    {
+      "id": 65,
+      "name": "中国"
+    },
+    {
+      "id": 66,
+      "name": "清国公使館"
+    },
+    {
+      "id": 68,
+      "name": "アメリカ"
+    },
+    {
+      "id": 69,
+      "name": "サンフランシスコ"
+    },
+    {
+      "id": 70,
+      "name": "新宿区"
+    },
+    {
+      "id": 71,
+      "name": "市ヶ谷"
+    },
+    {
+      "id": 72,
+      "name": "愛知県"
+    },
+    {
+      "id": 73,
+      "name": "名古屋市"
+    },
+    {
+      "id": 74,
+      "name": "名古屋藩学校・明倫堂"
+    },
+    {
+      "id": 75,
+      "name": "麹町区"
+    },
+    {
+      "id": 76,
+      "name": "飯田町"
+    },
+    {
+      "id": 77,
+      "name": "中国地方"
+    },
+    {
+      "id": 78,
+      "name": "島根県"
+    },
+    {
+      "id": 79,
+      "name": "松江市"
+    },
+    {
+      "id": 80,
+      "name": "竜江省"
+    },
+    {
+      "id": 81,
+      "name": "ハルビン市"
+    },
+    {
+      "id": 82,
+      "name": "北京市"
+    },
+    {
+      "id": 83,
+      "name": "ロシア"
+    },
+    {
+      "id": 84,
+      "name": "北西連邦管区"
+    },
+    {
+      "id": 85,
+      "name": "サンクトペテルブルク"
+    },
+    {
+      "id": 86,
+      "name": "東京外国語大学"
+    },
+    {
+      "id": 87,
+      "name": "六本木"
+    },
+    {
+      "id": 88,
+      "name": "湯島"
+    },
+    {
+      "id": 89,
+      "name": "昌平坂学問所の寄宿舎"
+    },
+    {
+      "id": 90,
+      "name": "芝大門"
+    }
+  ],
+  "sessions": [
+    {
+      "id": 0,
+      "location": 87,
+      "members": [
+        3
+      ],
+      "start": 0,
+      "end": 4,
+      "startYear": 1832.47814,
+      "endYear": 1848
+    },
+    {
+      "id": 1,
+      "location": 34,
+      "members": [
+        0
+      ],
+      "start": 1,
+      "end": 2,
+      "startYear": 1835,
+      "endYear": 1836
+    },
+    {
+      "id": 2,
+      "location": 51,
+      "members": [
+        0
+      ],
+      "start": 1,
+      "end": 5,
+      "startYear": 1836,
+      "endYear": 1854
+    },
+    {
+      "id": 10,
+      "location": 87,
+      "members": [
+        3
+      ],
+      "start": 3,
+      "end": 5,
+      "startYear": 1848,
+      "endYear": 1855
+    },
+    {
+      "id": 3,
+      "location": 41,
+      "members": [
+        2
+      ],
+      "start": 4,
+      "end": 8
+    },
+    {
+      "id": 4,
+      "location": 44,
+      "members": [
+        6
+      ],
+      "start": 4,
+      "end": 8
+    },
+    {
+      "id": 5,
+      "location": 53,
+      "members": [
+        5
+      ],
+      "start": 4,
+      "end": 8
+    },
+    {
+      "id": 9,
+      "location": 34,
+      "members": [
+        0
+      ],
+      "start": 4,
+      "end": 6,
+      "startYear": 1854,
+      "endYear": 1860
+    },
+    {
+      "id": 6,
+      "location": 11,
+      "members": [
+        4
+      ],
+      "start": 5,
+      "end": 6
+    },
+    {
+      "id": 11,
+      "location": 30,
+      "members": [
+        3
+      ],
+      "start": 5,
+      "end": 8,
+      "startYear": 1855,
+      "endYear": 1866.82
+    },
+    {
+      "id": 7,
+      "location": 20,
+      "members": [
+        1
+      ],
+      "start": 6,
+      "end": 9
+    },
+    {
+      "id": 36,
+      "location": 4,
+      "members": [
+        0
+      ],
+      "start": 6,
+      "end": 15,
+      "startYear": 1860,
+      "endYear": 1901
+    },
+    {
+      "id": 37,
+      "location": 71,
+      "members": [
+        7
+      ],
+      "start": 6,
+      "end": 8,
+      "startYear": 1864.25683,
+      "endYear": 1868.83333,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 江戸市ヶ谷合羽坂の尾張藩上屋敷に生まれた（異説あり"
+    },
+    {
+      "id": 13,
+      "location": 60,
+      "members": [
+        3
+      ],
+      "start": 7,
+      "end": 8,
+      "startYear": 1866.82,
+      "endYear": 1868.5,
+      "dateNote": "1866-10-26横浜出発、1867-01-01ロンドン到着、1868-06帰国"
+    },
+    {
+      "id": 53,
+      "location": 90,
+      "members": [
+        8
+      ],
+      "start": 7,
+      "end": 11,
+      "startYear": 1868.08333,
+      "endYear": 1883.66667
+    },
+    {
+      "id": 16,
+      "location": 25,
+      "members": [
+        3
+      ],
+      "start": 7,
+      "end": 9,
+      "startYear": 1868.5,
+      "endYear": 1875,
+      "dateNote": "1868-06帰国後、同年8月静岡大岩町へ移る"
+    },
+    {
+      "id": 38,
+      "location": 73,
+      "members": [
+        7
+      ],
+      "start": 7,
+      "end": 9,
+      "startYear": 1868.83333,
+      "endYear": 1871.58333,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 祖母とともに名古屋に移る"
+    },
+    {
+      "id": 14,
+      "location": 16,
+      "members": [
+        4
+      ],
+      "start": 8,
+      "end": 9
+    },
+    {
+      "id": 12,
+      "location": 4,
+      "members": [
+        5
+      ],
+      "start": 8,
+      "end": 10
+    },
+    {
+      "id": 15,
+      "location": 9,
+      "members": [
+        2,
+        6
+      ],
+      "start": 8,
+      "end": 10
+    },
+    {
+      "id": 39,
+      "location": 74,
+      "members": [
+        7
+      ],
+      "start": 8,
+      "end": 9,
+      "startYear": 1871.58333,
+      "endYear": 1872.75,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 名古屋藩学校に入学"
+    },
+    {
+      "id": 40,
+      "location": 76,
+      "members": [
+        7
+      ],
+      "start": 8,
+      "end": 10,
+      "startYear": 1872.75,
+      "endYear": 1875.33333,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 麹町区飯田町に住む"
+    },
+    {
+      "id": 17,
+      "location": 14,
+      "members": [
+        4
+      ],
+      "start": 9,
+      "end": 10
+    },
+    {
+      "id": 21,
+      "location": 47,
+      "members": [
+        5
+      ],
+      "start": 9,
+      "end": 10
+    },
+    {
+      "id": 18,
+      "location": 56,
+      "members": [
+        4
+      ],
+      "start": 9,
+      "end": 10
+    },
+    {
+      "id": 20,
+      "location": 67,
+      "members": [
+        5
+      ],
+      "start": 9,
+      "end": 10
+    },
+    {
+      "id": 19,
+      "location": 6,
+      "members": [
+        1
+      ],
+      "start": 9,
+      "end": 11
+    },
+    {
+      "id": 52,
+      "location": 7,
+      "members": [
+        3
+      ],
+      "start": 9,
+      "end": 13,
+      "startYear": 1875,
+      "endYear": 1891.43014
+    },
+    {
+      "id": 41,
+      "location": 79,
+      "members": [
+        7
+      ],
+      "start": 9,
+      "end": 10,
+      "startYear": 1875.33333,
+      "endYear": 1878.16667,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 松江に移る"
+    },
+    {
+      "id": 42,
+      "location": 2,
+      "members": [
+        7
+      ],
+      "start": 9,
+      "end": 11,
+      "startYear": 1878.16667,
+      "endYear": 1881.33333,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 東京に再び移る"
+    },
+    {
+      "id": 22,
+      "location": 9,
+      "members": [
+        2,
+        5,
+        6
+      ],
+      "start": 10,
+      "end": 12
+    },
+    {
+      "id": 25,
+      "location": 62,
+      "members": [
+        4
+      ],
+      "start": 10,
+      "end": 13
+    },
+    {
+      "id": 43,
+      "location": 86,
+      "members": [
+        7
+      ],
+      "start": 10,
+      "end": 11,
+      "startYear": 1881.33333,
+      "endYear": 1883.08493,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 東京外国語学校（現東京外国語大学）露語科に進学"
+    },
+    {
+      "id": 44,
+      "location": 86,
+      "members": [
+        7
+      ],
+      "start": 10,
+      "end": 12,
+      "startYear": 1883.08493,
+      "endYear": 1886
+    },
+    {
+      "id": 54,
+      "location": 6,
+      "members": [
+        8
+      ],
+      "start": 10,
+      "end": 15,
+      "startYear": 1883.66667,
+      "endYear": 1903,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E5%B0%BE%E5%B4%8E%E7%B4%85%E8%91%89 | 東京大学予備門に入学"
+    },
+    {
+      "id": 24,
+      "location": 6,
+      "members": [
+        1
+      ],
+      "start": 11,
+      "end": 21
+    },
+    {
+      "id": 46,
+      "location": 83,
+      "members": [
+        7
+      ],
+      "start": 11,
+      "end": 15,
+      "startYear": 1886,
+      "endYear": 1902.167,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | ロシア滞在中にエスペラントを学び"
+    },
+    {
+      "id": 27,
+      "location": 69,
+      "members": [
+        6
+      ],
+      "start": 11,
+      "end": 12,
+      "startYear": 1888.32,
+      "endYear": 1888.37,
+      "dateNote": "1888-04-28サンフランシスコ到着、1888-05-16リバプール到着まで"
+    },
+    {
+      "id": 34,
+      "location": 60,
+      "members": [
+        6
+      ],
+      "start": 11,
+      "end": 12,
+      "startYear": 1888.37,
+      "endYear": 1889.17,
+      "dateNote": "1888-05-16リバプール到着後ロンドンへ移動、1889-02帰国"
+    },
+    {
+      "id": 35,
+      "location": 9,
+      "members": [
+        6
+      ],
+      "start": 11,
+      "end": 14,
+      "startYear": 1889.17,
+      "endYear": 1896,
+      "dateNote": "1889-02日本へ帰国後、没年まで国内活動"
+    },
+    {
+      "id": 26,
+      "location": 9,
+      "members": [
+        2,
+        5
+      ],
+      "start": 12,
+      "end": 13
+    },
+    {
+      "id": 28,
+      "location": 9,
+      "members": [
+        2,
+        6
+      ],
+      "start": 13,
+      "end": 14
+    },
+    {
+      "id": 30,
+      "location": 66,
+      "members": [
+        5
+      ],
+      "start": 13,
+      "end": 14
+    },
+    {
+      "id": 29,
+      "location": 14,
+      "members": [
+        4
+      ],
+      "start": 13,
+      "end": 22
+    },
+    {
+      "id": 31,
+      "location": 9,
+      "members": [
+        2
+      ],
+      "start": 14,
+      "end": 15
+    },
+    {
+      "id": 32,
+      "location": 9,
+      "members": [
+        5
+      ],
+      "start": 14,
+      "end": 21
+    },
+    {
+      "id": 47,
+      "location": 83,
+      "members": [
+        7
+      ],
+      "start": 14,
+      "end": 15,
+      "startYear": 1902.167,
+      "endYear": 1902.33333
+    },
+    {
+      "id": 48,
+      "location": 81,
+      "members": [
+        7
+      ],
+      "start": 14,
+      "end": 15,
+      "startYear": 1902.33333,
+      "endYear": 1902.66667,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 大陸に渡りハルビンで徳永商会相談役となる"
+    },
+    {
+      "id": 49,
+      "location": 82,
+      "members": [
+        7
+      ],
+      "start": 14,
+      "end": 15,
+      "startYear": 1902.66667,
+      "endYear": 1903.5,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | かつての級友川島浪速を頼り北京の京師警務学堂提調代理となる"
+    },
+    {
+      "id": 50,
+      "location": 0,
+      "members": [
+        7
+      ],
+      "start": 14,
+      "end": 16,
+      "startYear": 1903.5,
+      "endYear": 1908.41667,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | 上職を辞して帰国"
+    },
+    {
+      "id": 51,
+      "location": 85,
+      "members": [
+        7
+      ],
+      "start": 15,
+      "end": 16,
+      "startYear": 1908.41667,
+      "endYear": 1908.5,
+      "dateNote": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7 | ロシアのペテルブルクへ派遣される"
+    },
+    {
+      "id": 45,
+      "location": 85,
+      "members": [
+        7
+      ],
+      "start": 15,
+      "end": 16,
+      "startYear": 1908.5,
+      "endYear": 1909.35342
+    },
+    {
+      "id": 33,
+      "location": 27,
+      "members": [
+        1
+      ],
+      "start": 21,
+      "end": 22
+    }
+  ],
+  "events": [
+    {
+      "character": 0,
+      "year": 1866,
+      "title": "西洋事情"
+    },
+    {
+      "character": 0,
+      "year": 1872,
+      "title": "学問のすゝめ"
+    },
+    {
+      "character": 0,
+      "year": 1875,
+      "title": "文明論之概略"
+    },
+    {
+      "character": 0,
+      "year": 1899,
+      "title": "福翁自伝"
+    },
+    {
+      "character": 1,
+      "year": 1884,
+      "title": "自由太刀余波鋭鋒"
+    },
+    {
+      "character": 1,
+      "year": 1885,
+      "title": "小説神髄"
+    },
+    {
+      "character": 1,
+      "year": 1885,
+      "title": "当世書生気質"
+    },
+    {
+      "character": 1,
+      "year": 1894,
+      "title": "桐一葉"
+    },
+    {
+      "character": 1,
+      "year": 1933,
+      "title": "新修シェークスピア全集"
+    },
+    {
+      "character": 2,
+      "year": 1881,
+      "title": "東洋自由新聞"
+    },
+    {
+      "character": 2,
+      "year": 1882,
+      "title": "民約訳解"
+    },
+    {
+      "character": 2,
+      "year": 1887,
+      "title": "三酔人経綸問答"
+    },
+    {
+      "character": 3,
+      "year": 1871,
+      "title": "西国立志編"
+    },
+    {
+      "character": 3,
+      "year": 1872,
+      "title": "自由之理"
+    },
+    {
+      "character": 4,
+      "year": 1878,
+      "title": "新説 八十日間世界一周 前編"
+    },
+    {
+      "character": 4,
+      "year": 1880,
+      "title": "新説 八十日間世界一周 後編"
+    },
+    {
+      "character": 4,
+      "year": 1882,
+      "title": "虚無党退治奇談"
+    },
+    {
+      "character": 5,
+      "year": 1874,
+      "title": "西洋偉人言行録"
+    },
+    {
+      "character": 5,
+      "year": 1883,
+      "title": "経国美談 前編"
+    },
+    {
+      "character": 5,
+      "year": 1884,
+      "title": "経国美談 後編"
+    },
+    {
+      "character": 5,
+      "year": 1890,
+      "title": "浮城物語"
+    },
+    {
+      "character": 6,
+      "year": 1876,
+      "title": "末広重恭転獄新話"
+    },
+    {
+      "character": 6,
+      "year": 1886,
+      "title": "雪中梅"
+    },
+    {
+      "character": 6,
+      "year": 1887,
+      "title": "花間鶯"
+    }
+  ],
+  "locationTree": {
+    "id": "root",
+    "name": "所在地",
+    "children": [
+      {
+        "id": 0,
+        "children": [
+          {
+            "id": 1,
+            "children": [
+              {
+                "id": 2,
+                "children": [
+                  {
+                    "id": 3,
+                    "children": [
+                      {
+                        "id": 4,
+                        "children": []
+                      },
+                      {
+                        "id": 87,
+                        "children": []
+                      },
+                      {
+                        "id": 90,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 5,
+                    "children": [
+                      {
+                        "id": 6,
+                        "children": []
+                      },
+                      {
+                        "id": 7,
+                        "children": []
+                      },
+                      {
+                        "id": 88,
+                        "children": [
+                          {
+                            "id": 89,
+                            "children": []
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": 8,
+                    "children": [
+                      {
+                        "id": 9,
+                        "children": []
+                      },
+                      {
+                        "id": 86,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 10,
+                    "children": [
+                      {
+                        "id": 11,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 70,
+                    "children": [
+                      {
+                        "id": 71,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 75,
+                    "children": [
+                      {
+                        "id": 76,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 12,
+                "children": [
+                  {
+                    "id": 13,
+                    "children": [
+                      {
+                        "id": 14,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 15,
+                    "children": [
+                      {
+                        "id": 16,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 54,
+                "children": [
+                  {
+                    "id": 55,
+                    "children": [
+                      {
+                        "id": 56,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 17,
+            "children": [
+              {
+                "id": 18,
+                "children": [
+                  {
+                    "id": 19,
+                    "children": [
+                      {
+                        "id": 20,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 21,
+                    "children": [
+                      {
+                        "id": 22,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 23,
+                "children": [
+                  {
+                    "id": 24,
+                    "children": [
+                      {
+                        "id": 25,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 26,
+                    "children": [
+                      {
+                        "id": 27,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 28,
+                "children": [
+                  {
+                    "id": 29,
+                    "children": [
+                      {
+                        "id": 30,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 72,
+                "children": [
+                  {
+                    "id": 73,
+                    "children": [
+                      {
+                        "id": 74,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 31,
+            "children": [
+              {
+                "id": 32,
+                "children": [
+                  {
+                    "id": 33,
+                    "children": [
+                      {
+                        "id": 34,
+                        "children": []
+                      },
+                      {
+                        "id": 67,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 35,
+                "children": [
+                  {
+                    "id": 36,
+                    "children": [
+                      {
+                        "id": 37,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 38,
+            "children": [
+              {
+                "id": 39,
+                "children": [
+                  {
+                    "id": 40,
+                    "children": [
+                      {
+                        "id": 41,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 42,
+                "children": [
+                  {
+                    "id": 43,
+                    "children": [
+                      {
+                        "id": 44,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 45,
+                "children": [
+                  {
+                    "id": 46,
+                    "children": [
+                      {
+                        "id": 47,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 48,
+            "children": [
+              {
+                "id": 49,
+                "children": [
+                  {
+                    "id": 50,
+                    "children": [
+                      {
+                        "id": 51,
+                        "children": []
+                      }
+                    ]
+                  },
+                  {
+                    "id": 52,
+                    "children": [
+                      {
+                        "id": 53,
+                        "children": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 77,
+            "children": [
+              {
+                "id": 78,
+                "children": [
+                  {
+                    "id": 79,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": 57,
+        "children": [
+          {
+            "id": 58,
+            "children": [
+              {
+                "id": 59,
+                "children": [
+                  {
+                    "id": 60,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": 61,
+                "children": [
+                  {
+                    "id": 62,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": 63,
+                "children": [
+                  {
+                    "id": 64,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": 68,
+                "children": [
+                  {
+                    "id": 69,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 65,
+            "children": [
+              {
+                "id": 66,
+                "children": []
+              },
+              {
+                "id": 80,
+                "children": [
+                  {
+                    "id": 81,
+                    "children": []
+                  }
+                ]
+              },
+              {
+                "id": 82,
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": 83,
+            "children": [
+              {
+                "id": 84,
+                "children": [
+                  {
+                    "id": 85,
+                    "children": []
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "sources": [
+    "https://ja.wikipedia.org/wiki/日本の近現代文学史",
+    "https://ja.wikipedia.org/wiki/福澤諭吉",
+    "https://ja.wikipedia.org/wiki/坪内逍遥",
+    "https://ja.wikipedia.org/wiki/中江兆民",
+    "https://ja.wikipedia.org/wiki/中村正直",
+    "https://ja.wikipedia.org/wiki/川島忠之助",
+    "https://ja.wikipedia.org/wiki/矢野龍渓",
+    "https://ja.wikipedia.org/wiki/末広鉄腸"
+  ],
+  "locationEvidence": [
+    {
+      "character": 7,
+      "year": 1864.25683,
+      "location": 71,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "江戸市ヶ谷合羽坂の尾張藩上屋敷に生まれた（異説あり"
+    },
+    {
+      "character": 7,
+      "year": 1868.83333,
+      "location": 73,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "祖母とともに名古屋に移る"
+    },
+    {
+      "character": 7,
+      "year": 1871.58333,
+      "location": 74,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "名古屋藩学校に入学"
+    },
+    {
+      "character": 7,
+      "year": 1872.75,
+      "location": 76,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "麹町区飯田町に住む"
+    },
+    {
+      "character": 7,
+      "year": 1875.33333,
+      "location": 79,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "松江に移る"
+    },
+    {
+      "character": 7,
+      "year": 1878.16667,
+      "location": 2,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "東京に再び移る"
+    },
+    {
+      "character": 7,
+      "year": 1881.33333,
+      "location": 86,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "東京外国語学校（現東京外国語大学）露語科に進学"
+    },
+    {
+      "character": 7,
+      "year": 1902,
+      "location": 83,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "ロシア滞在中にエスペラントを学び"
+    },
+    {
+      "character": 7,
+      "year": 1902.33333,
+      "location": 81,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "大陸に渡りハルビンで徳永商会相談役となる"
+    },
+    {
+      "character": 7,
+      "year": 1902.66667,
+      "location": 82,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "かつての級友川島浪速を頼り北京の京師警務学堂提調代理となる"
+    },
+    {
+      "character": 7,
+      "year": 1903.5,
+      "location": 0,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "上職を辞して帰国"
+    },
+    {
+      "character": 7,
+      "year": 1908.41667,
+      "location": 85,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "ロシアのペテルブルクへ派遣される"
+    },
+    {
+      "character": 8,
+      "year": 1883.66667,
+      "location": 6,
+      "source": "https://ja.wikipedia.org/wiki/%E5%B0%BE%E5%B4%8E%E7%B4%85%E8%91%89",
+      "evidence": "東京大学予備門に入学"
+    }
+  ]
+}

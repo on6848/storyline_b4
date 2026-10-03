@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Storyline データ編集</title>
+  <style>
+    :root { color-scheme: light; font-family: Inter, "Hiragino Sans", "Yu Gothic", sans-serif; color: #17222d; background: #f5f7f8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: .5; }
+    header { display: flex; align-items: center; gap: 18px; padding: 12px 20px; background: #17222d; color: white; min-height: 62px; }
+    header strong { font-size: 18px; white-space: nowrap; }
+    header .spacer { flex: 1; }
+    header button { border: 1px solid #45535f; background: transparent; color: white; padding: 8px 13px; border-radius: 5px; }
+    header button.primary { background: #33ad8b; border-color: #33ad8b; color: #10201d; font-weight: 700; }
+    #status { font-size: 14px; color: #d4e3e9; min-width: 100px; text-align: right; }
+    main { display: grid; grid-template-columns: minmax(420px, 560px) minmax(0, 1fr); min-height: calc(100vh - 62px); }
+    .editor { border-right: 1px solid #d8e0e5; min-width: 0; background: white; }
+    .tabs { display: flex; overflow-x: auto; border-bottom: 1px solid #d8e0e5; padding: 0 14px; }
+    .tabs button { border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 15px 13px 12px; white-space: nowrap; color: #586773; font-size: 14px; font-weight: 600; }
+    .tabs button.active { color: #126e62; border-bottom-color: #19a88b; }
+    .editorBody { display: grid; grid-template-columns: minmax(150px, 42%) minmax(0, 1fr); height: calc(100vh - 112px); min-height: 550px; }
+    .records { overflow: auto; border-right: 1px solid #e1e7eb; }
+    .listHead { display: flex; align-items: center; justify-content: space-between; padding: 13px 12px; border-bottom: 1px solid #e1e7eb; font-size: 14px; color: #5f707b; position: sticky; top: 0; background: white; z-index: 1; }
+    .listHead button { border: 1px solid #b8c8d0; background: white; border-radius: 4px; padding: 3px 9px; font-size: 17px; line-height: 1; }
+    .sessionFilter { padding: 10px 11px; border-bottom: 1px solid #e1e7eb; background: #f9fbfb; }
+    .sessionFilter[hidden] { display: none; }
+    .modeSwitch { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #c7d5d9; border-radius: 5px; overflow: hidden; }
+    .modeSwitch button { border: 0; background: white; color: #526570; font-size: 14px; font-weight: 700; padding: 7px 2px; white-space: nowrap; }
+    .modeSwitch button + button { border-left: 1px solid #c7d5d9; }
+    .modeSwitch button.active { background: #dff3eb; color: #126e62; }
+    .sessionFilter select { display: block; width: 100%; margin-top: 8px; padding: 7px 6px; border: 1px solid #c7d5d9; border-radius: 4px; background: white; color: #17222d; font-size: 14px; }
+    .record { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #edf1f3; border-left: 3px solid transparent; background: white; padding: 10px 11px; color: #1e2e38; }
+    .record:hover { background: #f4faf8; }
+    .record.active { background: #e8f5f0; border-left-color: #159476; }
+    .record b { display: block; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .record small { display: block; color: #73818a; font-size: 13px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .details { overflow: auto; padding: 18px 17px 34px; }
+    .details h2 { font-size: 18px; margin: 0 0 16px; }
+    .field { display: block; margin-bottom: 14px; font-size: 14px; font-weight: 700; color: #485b66; }
+    .field input, .field select, .field textarea { display: block; width: 100%; margin-top: 6px; border: 1px solid #cbd6dc; border-radius: 4px; background: white; color: #17222d; padding: 9px; min-height: 38px; font-size: 14px; font-weight: 400; }
+    .dateField { min-width: 0; border: 0; padding: 0; margin: 0 0 14px; }
+    .dateField legend { padding: 0; margin-bottom: 6px; font-size: 14px; font-weight: 700; color: #485b66; }
+    .dateParts { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr) minmax(0, 1fr); gap: 5px; }
+    .dateParts label { display: flex; align-items: center; gap: 3px; min-width: 0; font-size: 13px; color: #526570; }
+    .dateParts input { width: 100%; min-width: 0; min-height: 38px; border: 1px solid #cbd6dc; border-radius: 4px; padding: 6px 4px; font-size: 14px; background: white; color: #17222d; }
+    .dateParts input:disabled { background: #f0f4f5; color: #596b76; }
+    .field textarea { min-height: 82px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus { outline: 2px solid #72c9b0; outline-offset: 0; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .members { border: 1px solid #dbe3e8; border-radius: 4px; max-height: 200px; overflow: auto; padding: 4px 9px; margin: 7px 0 15px; }
+    .members label { display: flex; align-items: center; gap: 7px; padding: 6px 0; font-size: 14px; }
+    .members input { accent-color: #148a70; }
+    .danger { color: #a3262c; background: white; border: 1px solid #ddc2c2; border-radius: 4px; padding: 7px 10px; margin-top: 12px; }
+    .relatedLink { border: 1px solid #b8c8d0; background: white; border-radius: 4px; padding: 7px 10px; color: #126e62; font-size: 14px; font-weight: 700; }
+    .relatedLink + .relatedLink { margin-left: 6px; }
+    .colorRow { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+    .colorRow input[type="color"] { width: 52px; min-height: 38px; margin-top: 0; padding: 3px; cursor: pointer; }
+    .editor.chronologyMode .editorBody { grid-template-columns: minmax(155px, 27%) minmax(0, 1fr); }
+    main:has(.chronologyMode) { grid-template-columns: minmax(650px, 820px) minmax(0, 1fr); }
+    .chronologyTitle { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 10px; }
+    .chronologyTitle h2 { margin: 0; }
+    .chronologyTitle small { color: #6c7d87; white-space: nowrap; }
+    .period { border-top: 1px solid #dde6e9; padding: 13px 0 5px; }
+    .periodHead { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+    .periodHead strong { font-size: 14px; color: #42606b; }
+    .periodHead .spacer { flex: 1; }
+    .periodHead button { width: 28px; height: 27px; border: 1px solid #bdcbd2; border-radius: 4px; background: white; color: #28434f; font-size: 18px; line-height: 1; }
+    .periodHead button:disabled { opacity: .35; }
+    .period .field { margin-bottom: 10px; }
+    .period .field input:disabled { background: #f0f4f5; color: #596b76; }
+    .periodMeta { color: #667984; font-size: 13px; line-height: 1.5; margin: -2px 0 12px; }
+    .periodMeta span { display: block; }
+    .period details { margin-bottom: 11px; }
+    .period summary { cursor: pointer; color: #42606b; font-size: 14px; }
+    .period details textarea { width: 100%; min-height: 55px; margin-top: 7px; border: 1px solid #cbd6dc; border-radius: 4px; padding: 7px; resize: vertical; font-size: 14px; }
+    .articleImport { border-bottom: 1px solid #d8e2e6; margin: 0 0 10px; padding: 0 0 15px; }
+    .articleImport label { display: block; font-size: 14px; font-weight: 700; color: #485b66; }
+    .articleImport input[type="url"] { width: 100%; min-width: 0; margin: 7px 0; border: 1px solid #cbd6dc; border-radius: 4px; padding: 9px; font-size: 14px; }
+    .articleImport button { border: 1px solid #b8c8d0; background: white; border-radius: 4px; padding: 7px 10px; color: #28434f; font-size: 14px; font-weight: 700; }
+    .articleImport button.primaryAction { background: #1c987a; border-color: #1c987a; color: white; }
+    .articleResultHead { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 5px; font-size: 14px; }
+    .articleResultHead a { color: #126e62; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .articleCandidate { border-top: 1px solid #e4eaed; padding: 10px 0; }
+    .articleCandidateTop { display: flex; align-items: center; gap: 7px; font-size: 14px; }
+    .articleCandidateTop input[type="checkbox"] { accent-color: #148a70; }
+    .articleCandidateTop strong { font-size: 14px; }
+    .articleCandidateTop small { margin-left: auto; color: #5e7380; }
+    .articleCandidateTop .dateField { margin: 0; border: 0; padding: 0; }
+    .articleCandidateTop .dateField legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+    .articleCandidateTop .dateParts { display: flex; gap: 4px; }
+    .articleCandidateTop .dateParts label { font-size: 13px; color: #526570; gap: 2px; }
+    .articleCandidateTop .dateParts input { width: 50px; min-height: 30px; padding: 3px 4px; font-size: 13px; }
+    .articleCandidate select { width: 100%; margin: 7px 0 3px; border: 1px solid #cbd6dc; border-radius: 4px; background: white; padding: 6px; font-size: 12px; }
+    .articleCandidate p { margin: 4px 0 7px; color: #586c77; font-size: 13px; line-height: 1.45; }
+    .articleCandidate .placeCreate { margin-top: 6px; }
+    .articleCandidate .placeCreate[hidden] { display: none; }
+    .articleCandidate .placeLevel { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; margin-bottom: 6px; }
+    .articleCandidate .placeLevel input, .articleCandidate .placeLevel select { min-width: 0; width: 100%; margin: 0; border: 1px solid #cbd6dc; border-radius: 4px; padding: 6px; font-size: 12px; }
+    .articleCandidate .placeCreate button { white-space: nowrap; }
+    .articleCandidate .placeActions { display: flex; gap: 6px; }
+    .hint { color: #6c7d87; font-size: 14px; line-height: 1.5; }
+    .preview { display: flex; flex-direction: column; min-width: 0; }
+    .previewBar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 11px 15px; border-bottom: 1px solid #d8e0e5; background: #fafcfc; min-height: 50px; }
+    .previewBar span { font-size: 14px; font-weight: 700; color: #526570; }
+    .previewBar select { border: 1px solid #bdcbd2; background: white; border-radius: 4px; padding: 5px 7px; }
+    .previewBar button { margin-left: auto; border: 1px solid #bdcbd2; background: white; border-radius: 4px; padding: 5px 9px; white-space: nowrap; }
+    iframe { flex: 1; width: 100%; min-height: 610px; border: 0; background: white; }
+    @media (max-width: 1000px) { main { display: block; } .editor { border-right: 0; } .editorBody { height: 510px; min-height: 0; } .preview { border-top: 1px solid #d8e0e5; height: 650px; } }
+    @media (max-width: 1000px) { main:has(.chronologyMode) { display: block; } }
+    @media (max-width: 700px) { .editor.chronologyMode .editorBody { display: block; height: auto; } .editor.chronologyMode .records { max-height: 190px; border-right: 0; border-bottom: 1px solid #d8e0e5; } .editor.chronologyMode .details { max-height: none; overflow: visible; } }
+    @media (max-width: 560px) { header { flex-wrap: wrap; gap: 8px; padding: 10px; } header strong { width: 100%; } #status { min-width: 0; } .editorBody { grid-template-columns: 42% 58%; } .details { padding: 13px 10px; } .two { display: block; } .previewBar button { margin-left: 0; } }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Storyline データ編集</strong>
+    <span class="spacer"></span>
+    <span id="status" role="status"></span>
+    <button id="reload" title="保存済みデータを再読込">再読込</button>
+    <button id="save" class="primary">保存して図に反映</button>
+  </header>
+  <main>
+    <section class="editor" aria-label="データ編集">
+      <nav class="tabs" id="tabs" aria-label="編集対象"></nav>
+      <div class="editorBody">
+        <div class="records"><div class="listHead"><span id="count"></span><button id="add" title="追加" aria-label="追加">+</button></div><div id="sessionFilter" class="sessionFilter" hidden></div><div id="list"></div></div>
+        <div class="details" id="details"></div>
+      </div>
+    </section>
+    <section class="preview" aria-label="図のプレビュー">
+      <div class="previewBar"><span>プレビュー</span><select id="granularity" aria-label="粒度"><option value="country">国</option><option value="region" selected>地方</option><option value="prefecture">都道府県</option><option value="city">市区町村</option><option value="facility">施設</option></select><button id="showPreview" title="図を表示・更新">図を表示</button><button id="openPreview" title="図を別タブで開く" style="margin-left:0">別タブで開く</button></div>
+      <iframe id="preview" title="Storyline プレビュー" src="about:blank"></iframe>
+    </section>
+  </main>
+  <script src="scripts/dates.js"></script>
+  <script src="scripts/chronology.js"></script>
+  <script>
+    const tabNames = { characters: '人物', chronology: '年譜', locations: '場所ツリー', sessions: 'セッション', events: '作品' };
+    const state = { data: null, tab: 'characters', selected: null, dirty: false, sessionView: 'all', personId: null, chronologyRows: null, articleUrl: '', articleImport: null };
+    const $ = id => document.getElementById(id);
+    const option = (value, label, selected) => `<option value="${value}"${selected ? ' selected' : ''}>${escapeHtml(label)}</option>`;
+    const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const yearOf = (s, edge) => Number(s[edge + 'Year'] ?? state.data.timeLabels[s[edge]]);
+    const locationName = id => state.data.locations.find(x => x.id === id)?.name || '未設定';
+    const personName = id => state.data.characters.find(x => x.id === id)?.name || '未設定';
+    const nextId = items => Math.max(-1, ...items.map(x => x.id)) + 1;
+    const PALETTE_10 = ['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#7f7f7f','#bcbd22','#17becf'];
+    const PALETTE_20 = ['#1f77b4','#aec7e8','#ff7f0e','#ffbb78','#2ca02c','#98df8a','#d62728','#ff9896','#9467bd','#c5b0d5','#8c564b','#c49c94','#e377c2','#f7b6d2','#7f7f7f','#c7c7c7','#bcbd22','#dbdb8d','#17becf','#9edae5'];
+    const defaultCharacterColor = (index, total) => (total <= 10 ? PALETTE_10 : PALETTE_20)[index % (total <= 10 ? PALETTE_10.length : PALETTE_20.length)];
+    const selectedIndex = () => state.tab === 'events' ? state.selected : state.data[state.tab].findIndex(x => x.id === state.selected);
+    const current = () => state.data[state.tab][selectedIndex()];
+    function status(message, error = false) { $('status').textContent = message; $('status').style.color = error ? '#ffc4c4' : '#d4e3e9'; }
+    function markDirty() { state.dirty = true; status('未保存の変更があります'); }
+    function findNode(id, node = state.data.locationTree, parent = null) {
+      if (node.id === id) return { node, parent };
+      for (const child of node.children || []) { const found = findNode(id, child, node); if (found) return found; }
+      return null;
+    }
+    function descendants(node) { return [node.id, ...(node.children || []).flatMap(descendants)]; }
+    function treeRows(node = state.data.locationTree, depth = -1) {
+      return (node.children || []).flatMap(child => [{ id: child.id, depth: depth + 1 }, ...treeRows(child, depth + 1)]);
+    }
+    function render() {
+      document.querySelector('.editor').classList.toggle('chronologyMode', state.tab === 'chronology');
+      $('add').hidden = state.tab === 'chronology';
+      $('tabs').innerHTML = Object.entries(tabNames).map(([key, name]) => `<button data-tab="${key}" class="${state.tab === key ? 'active' : ''}">${name}</button>`).join('');
+      $('tabs').querySelectorAll('button').forEach(button => button.onclick = () => { state.tab = button.dataset.tab; state.selected = null; state.chronologyRows = null; state.articleImport = null; render(); });
+      renderList(); renderDetails();
+    }
+    function sessionRows() {
+      return state.data.sessions.filter(session => state.sessionView === 'all' || session.members.includes(state.personId)).sort((a,b) => yearOf(a,'start') - yearOf(b,'start') || yearOf(a,'end') - yearOf(b,'end') || locationName(a.location).localeCompare(locationName(b.location)) || a.members.map(personName).sort().join('、').localeCompare(b.members.map(personName).sort().join('、')));
+    }
+    function selectFirstPersonSession() {
+      state.selected = state.tab === 'sessions' && state.sessionView === 'person' ? sessionRows()[0]?.id ?? null : null;
+    }
+    function renderSessionFilter() {
+      const container = $('sessionFilter');
+      container.hidden = state.tab !== 'sessions';
+      if (container.hidden) return;
+      const people = [...state.data.characters].sort((a,b) => a.name.localeCompare(b.name) || a.birthYear-b.birthYear);
+      if (!people.some(person => person.id === state.personId)) state.personId = people[0]?.id ?? null;
+      container.innerHTML = `<div class="modeSwitch" role="group" aria-label="セッションの表示"><button data-view="all" class="${state.sessionView === 'all' ? 'active' : ''}" aria-pressed="${state.sessionView === 'all'}">すべて</button><button data-view="person" class="${state.sessionView === 'person' ? 'active' : ''}" aria-pressed="${state.sessionView === 'person'}">人物別</button></div>` + (state.sessionView === 'person' ? `<select id="sessionPerson" aria-label="人物を選択">${people.map(person => option(person.id, person.name, person.id === state.personId)).join('')}</select>` : '');
+      container.querySelectorAll('[data-view]').forEach(button => button.onclick = () => {
+        state.sessionView = button.dataset.view;
+        selectFirstPersonSession();
+        renderList(); renderDetails();
+      });
+      const select = $('sessionPerson');
+      if (select) select.onchange = () => {
+        state.personId = Number(select.value);
+        selectFirstPersonSession();
+        renderList(); renderDetails();
+      };
+    }
+    function renderList() {
+      const data = state.data;
+      renderSessionFilter();
+      const rows = state.tab === 'locations' ? treeRows() : state.tab === 'sessions' ? sessionRows() : state.tab === 'events' ? data.events.map((x, index) => ({...x, index})).sort((a,b) => a.year - b.year || a.title.localeCompare(b.title)) : [...data.characters].sort((a,b) => a.birthYear - b.birthYear || a.name.localeCompare(b.name));
+      $('count').textContent = `${state.tab === 'chronology' ? '人物' : tabNames[state.tab]} ${rows.length}件`;
+      $('list').replaceChildren();
+      rows.forEach(row => {
+        const id = state.tab === 'events' ? row.index : row.id;
+        const title = state.tab === 'locations' ? locationName(row.id) : state.tab === 'sessions' ? state.sessionView === 'person' ? locationName(row.location) : `${locationName(row.location)} · ${row.members.map(personName).join('、')}` : state.tab === 'events' ? row.title : row.name;
+        const sub = state.tab === 'sessions' ? `${yearOf(row,'start')}–${yearOf(row,'end')}${state.sessionView === 'person' && row.members.length > 1 ? ' · ' + row.members.filter(id => id !== state.personId).map(personName).join('、') : ''}` : state.tab === 'events' ? `${row.year} · ${personName(row.character)}` : state.tab === 'characters' || state.tab === 'chronology' ? `${row.birthYear}–${row.deathYear}` : '';
+        const button = document.createElement('button');
+        button.className = 'record' + (state.selected === id ? ' active' : '');
+        button.style.paddingLeft = state.tab === 'locations' ? `${11 + Math.min(row.depth, 4) * 13}px` : '';
+        const name = document.createElement('b'); name.textContent = title;
+        const small = document.createElement('small'); small.textContent = sub;
+        button.append(name, small);
+        button.onclick = () => { state.selected = id; if (state.tab === 'chronology') { state.chronologyRows = null; state.articleImport = null; state.articleUrl = ''; } renderList(); renderDetails(); };
+        $('list').append(button);
+      });
+    }
+    function field(label, key, value, type = 'text', extra = '') { return `<label class="field">${label}<input data-field="${key}" type="${type}" value="${escapeHtml(value)}" ${extra}></label>`; }
+    function dateField(label, key, value, index = null, disabled = false) {
+      const date = StoryDates.parts(value);
+      const attrs = `data-date-field="${key}"${index === null ? '' : ` data-date-index="${index}"`}`;
+      return `<fieldset class="dateField" ${attrs}><legend>${label}</legend><div class="dateParts">${[['year','年',date.year,1600,2099],['month','月',date.month,1,12],['day','日',date.day,1,31]].map(([part,unit,number,min,max]) => `<label><input type="number" data-date-part="${part}" aria-label="${label}の${unit}" min="${min}" max="${max}" step="1" value="${number}" placeholder="--" ${disabled ? 'disabled' : ''}>${unit}</label>`).join('')}</div></fieldset>`;
+    }
+    function bindDateFields(handler) {
+      $('details').querySelectorAll('.dateField').forEach(group => {
+        group.querySelectorAll('[data-date-part]').forEach(input => input.onchange = () => {
+          const part = name => group.querySelector(`[data-date-part="${name}"]`).value;
+          try { handler(group.dataset.dateField, StoryDates.decimal(part('year'),part('month'),part('day')), group.dataset.dateIndex); }
+          catch(error) { status(error.message,true); }
+        });
+      });
+    }
+    function selectField(label, key, options, value) { return `<label class="field">${label}<select data-field="${key}">${options.map(([id, text]) => option(id,text,id === value)).join('')}</select></label>`; }
+    function renderChronology() {
+      const person = state.data.characters.find(item => item.id === state.selected);
+      if (!person) { $('details').innerHTML = '<p class="hint">人物を選択してください。</p>'; return; }
+      if (!state.chronologyRows) state.chronologyRows = StoryChronology.effectiveTimeline(state.data, person.id);
+      const rows = state.chronologyRows;
+      const places = treeRows().map(item => [item.id, `${'　'.repeat(item.depth)}${locationName(item.id)}`]);
+      let html = `<div class="chronologyTitle"><h2>${escapeHtml(person.name)}の年譜</h2><small>${person.birthYear}–${person.deathYear}</small></div>`;
+      html += `<div class="articleImport"><label for="articleUrl">人物記事のURL</label><input id="articleUrl" type="url" placeholder="https://ja.wikipedia.org/wiki/..." value="${escapeHtml(state.articleUrl)}"><button id="analyzeArticle">記事を解析</button>`;
+      if (state.articleImport) {
+        const imported = state.articleImport;
+        const titleMatches = imported.title.replace(/\s/g,'').includes(person.name.replace(/\s/g,''));
+        html += `<div class="articleResultHead"><a href="${escapeHtml(imported.url)}" target="_blank" rel="noopener noreferrer" title="記事を開く">${escapeHtml(imported.title)}</a><span>${imported.candidates.length}件</span></div>`;
+        if (!titleMatches) html += '<p class="hint">記事タイトルと選択中の人物名が異なります。取り込む候補を確認してください。</p>';
+        if (!imported.candidates.length) html += '<p class="hint">時刻と場所を特定できる記述は見つかりませんでした。</p>';
+        imported.candidates.forEach((candidate,index) => {
+          const currentRow = rows.find(row => row.start <= candidate.year && candidate.year < row.end);
+          const comparison = candidate.location == null ? '場所未設定' : currentRow && (currentRow.location === candidate.location || StoryChronology.isAncestorLocation(state.data,candidate.location,currentRow.location)) ? '一致' : '更新候補';
+          html += `<div class="articleCandidate" data-article-row="${index}"><div class="articleCandidateTop"><input type="checkbox" data-article-check="${index}" aria-label="候補を取り込む" ${candidate.selected ? 'checked' : ''}>${dateField('候補の日付','candidateYear',candidate.year,index)}<small>${comparison}</small></div>`;
+          html += `<select data-article-location="${index}" aria-label="候補の場所">${option('',candidate.place ? `場所を選択 (${candidate.place})` : '場所を選択',candidate.location == null)}${places.map(([id,name]) => option(id,name,id === candidate.location)).join('')}</select>`;
+          html += `<p>${escapeHtml(candidate.evidence)}</p><button data-create-place="${index}">+ 場所を追加</button>`;
+          const levels = candidate.creating || [];
+          html += `<div class="placeCreate" ${levels.length ? '' : 'hidden'}>`;
+          levels.forEach((level, li) => {
+            const parentOptions = li === 0 ? places : [[`new:${li - 1}`, `${levels[li - 1].name || '新しい場所'}の子として追加`], ...places];
+            html += `<div class="placeLevel"><input data-place-name="${index}:${li}" aria-label="新しい場所名（${li + 1}段目）" placeholder="場所名" value="${escapeHtml(level.name)}"><select data-place-parent="${index}:${li}" aria-label="親の場所（${li + 1}段目）">${option('','親を選択',level.parent === '')}${parentOptions.map(([id,name]) => option(id,name,String(id) === String(level.parent))).join('')}</select>`;
+            html += li === levels.length - 1 && levels.length > 1 ? `<button data-remove-place-level="${index}" title="この段を取り消し" aria-label="この段を取り消し">－</button>` : '<span></span>';
+            html += '</div>';
+          });
+          if (levels.length) html += `<div class="placeActions"><button data-add-place-level="${index}">＋ 下の階層を追加</button><button data-confirm-place="${index}">登録</button></div>`;
+          html += '</div></div>';
+        });
+        if (imported.candidates.length) html += `<button id="applyArticle" class="primaryAction">${imported.applied ? '選択結果を再反映' : '選択した候補を年譜へ反映'}</button>`;
+      }
+      html += '</div>';
+      rows.forEach((row, index) => {
+        const peers = [...new Set(state.data.sessions.filter(session => session.location === row.location && yearOf(session,'start') < row.end && yearOf(session,'end') > row.start).flatMap(session => session.members).filter(id => id !== person.id))].map(personName).sort();
+        const works = state.data.events.filter(event => event.character === person.id && event.year >= row.start && event.year < row.end).sort((a,b) => a.year-b.year || a.title.localeCompare(b.title));
+        html += `<section class="period" data-period="${index}"><div class="periodHead"><strong>${String(index + 1).padStart(2,'0')}</strong><span class="spacer"></span><button data-split="${index}" title="この期間を分割" aria-label="期間を分割">+</button><button data-remove="${index}" title="この期間を削除" aria-label="期間を削除" ${rows.length === 1 ? 'disabled' : ''}>×</button></div>`;
+        html += `<div class="two">${dateField('開始日','start',row.start,index,index === 0)}${dateField('終了日','end',row.end,index,index === rows.length-1)}</div>`;
+        html += `<label class="field">場所<select data-period-field="location" data-index="${index}">${places.map(([id,name]) => option(id,name,id === row.location)).join('')}</select></label>`;
+        if (peers.length || works.length) html += `<div class="periodMeta">${peers.length ? `<span>同じ場所: ${escapeHtml(peers.join('、'))}</span>` : ''}${works.length ? `<span>作品: ${works.map(item => escapeHtml(`${StoryDates.label(item.year)} ${item.title}`)).join('、')}</span>` : ''}</div>`;
+        html += `<details><summary>${row.note ? '根拠メモあり' : '根拠メモ'}</summary><textarea data-period-field="note" data-index="${index}">${escapeHtml(row.note)}</textarea></details></section>`;
+      });
+      $('details').innerHTML = html;
+      $('articleUrl').oninput = event => { state.articleUrl = event.target.value; };
+      $('analyzeArticle').onclick = analyzeArticle;
+      if (state.articleImport) {
+        $('details').querySelectorAll('[data-article-check]').forEach(input => input.onchange = () => { state.articleImport.candidates[Number(input.dataset.articleCheck)].selected = input.checked; });
+        $('details').querySelectorAll('[data-article-location]').forEach(input => input.onchange = () => {
+          const candidate = state.articleImport.candidates[Number(input.dataset.articleLocation)];
+          candidate.location = input.value === '' ? null : Number(input.value);
+          if (candidate.location !== null) candidate.selected = true;
+          renderChronology();
+        });
+        $('details').querySelectorAll('[data-create-place]').forEach(button => button.onclick = () => {
+          const candidate = state.articleImport.candidates[Number(button.dataset.createPlace)];
+          candidate.creating = [{name: candidate.place || '', parent: ''}];
+          renderChronology();
+        });
+        $('details').querySelectorAll('[data-add-place-level]').forEach(button => button.onclick = () => {
+          const index = Number(button.dataset.addPlaceLevel);
+          syncPlaceLevels(index);
+          const levels = state.articleImport.candidates[index].creating;
+          levels.push({name: '', parent: `new:${levels.length - 1}`});
+          renderChronology();
+        });
+        $('details').querySelectorAll('[data-remove-place-level]').forEach(button => button.onclick = () => {
+          const index = Number(button.dataset.removePlaceLevel);
+          syncPlaceLevels(index);
+          state.articleImport.candidates[index].creating.pop();
+          renderChronology();
+        });
+        $('details').querySelectorAll('[data-confirm-place]').forEach(button => button.onclick = () => createArticlePlace(Number(button.dataset.confirmPlace)));
+        if ($('applyArticle')) $('applyArticle').onclick = () => applyArticleCandidates(false);
+      }
+      $('details').querySelectorAll('[data-period-field]').forEach(input => input.onchange = () => changeChronology(Number(input.dataset.index),input.dataset.periodField,input.value));
+      bindDateFields((key,value,index) => {
+        if (key === 'candidateYear') { changeArticleCandidateDate(Number(index),value); return; }
+        changeChronology(Number(index),key,value);
+      });
+      $('details').querySelectorAll('[data-split]').forEach(button => button.onclick = () => splitChronology(Number(button.dataset.split)));
+      $('details').querySelectorAll('[data-remove]').forEach(button => button.onclick = () => removeChronologyPeriod(Number(button.dataset.remove)));
+    }
+    async function analyzeArticle() {
+      const personId = state.selected;
+      const person = state.data.characters.find(item => item.id === personId);
+      const url = $('articleUrl').value.trim();
+      if (!url) { status('記事URLを入力してください',true); return; }
+      state.articleUrl = url;
+      $('analyzeArticle').disabled = true;
+      status('記事を解析中...');
+      try {
+        const response = await fetch('/api/article',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url,person,locations:state.data.locations})});
+        const result = await response.json();
+        if (!response.ok) throw new Error((result.errors || [result.error]).join(' / '));
+        if (state.selected !== personId || state.tab !== 'chronology') return;
+        const titleMatches = result.title.replace(/\s/g,'').includes(person.name.replace(/\s/g,''));
+        const sameDateCount = result.candidates.reduce((counts,c) => (counts[c.year] = (counts[c.year] || 0) + 1, counts), {});
+        result.candidates.forEach(candidate => { candidate.selected = titleMatches && candidate.location !== null && candidate.confidence >= 0.8 && sameDateCount[candidate.year] === 1; });
+        result.baseRows = state.chronologyRows.map(row => ({...row}));
+        result.baseEvidence = [...(state.data.locationEvidence || [])];
+        state.articleImport = result;
+        if (result.candidates.some(candidate => candidate.selected)) applyArticleCandidates(true);
+        else { status(`${result.candidates.length}件の候補を抽出しました`); renderChronology(); }
+      } catch(error) { status(error.message,true); $('analyzeArticle').disabled = false; }
+    }
+    function changeArticleCandidateDate(index,value) {
+      state.articleImport.candidates[index].year = value;
+      renderChronology();
+    }
+    function syncPlaceLevels(index) {
+      state.articleImport.candidates[index].creating.forEach((level, li) => {
+        level.name = $('details').querySelector(`[data-place-name="${index}:${li}"]`).value.trim();
+        level.parent = $('details').querySelector(`[data-place-parent="${index}:${li}"]`).value;
+      });
+    }
+    function createArticlePlace(index) {
+      const candidate = state.articleImport.candidates[index];
+      syncPlaceLevels(index);
+      const levels = candidate.creating;
+      if (levels.some(level => !level.name || level.parent === '')) { status('すべての段の場所名と親の場所を指定してください',true); return; }
+      const names = levels.map(level => level.name);
+      if (names.some((name, i) => names.indexOf(name) !== i) || levels.some(level => state.data.locations.some(place => place.name === level.name))) {
+        status('同じ名前の場所が既にあります',true); return;
+      }
+      const createdIds = [];
+      levels.forEach(level => {
+        const id = nextId(state.data.locations);
+        state.data.locations.push({id, name: level.name});
+        const parentId = level.parent.startsWith('new:') ? createdIds[Number(level.parent.slice(4))] : Number(level.parent);
+        findNode(parentId).node.children.push({id, children: []});
+        createdIds.push(id);
+      });
+      candidate.location = createdIds[createdIds.length - 1];
+      candidate.place = levels[levels.length - 1].name;
+      candidate.selected = true;
+      candidate.creating = null;
+      markDirty(); renderChronology();
+    }
+    function applyArticleCandidates(auto = false) {
+      const imported = state.articleImport;
+      const selected = imported.candidates.filter(candidate => candidate.selected);
+      if (!selected.length) {
+        if (!imported.applied) { status('取り込む候補を選択してください',true); return; }
+        if (applyChronologyRows(imported.baseRows.map(row => ({...row})))) {
+          state.data.locationEvidence = [...imported.baseEvidence];
+          imported.applied = false;
+          renderChronology();
+          status('この記事からの取込みを取り消しました（未保存）');
+        }
+        return;
+      }
+      if (selected.some(candidate => candidate.location === null)) { status('候補の場所を指定してください',true); return; }
+      try {
+        const rows = StoryChronology.mergeArticleEvents(state.data,state.selected,imported.baseRows,selected);
+        if (applyChronologyRows(rows)) {
+          const evidence = [...imported.baseEvidence];
+          for (const candidate of selected) {
+            if (!evidence.some(item => item.character === state.selected && item.year === candidate.year && item.location === candidate.location && item.source === candidate.source)) {
+              evidence.push({character:state.selected,year:candidate.year,location:candidate.location,source:candidate.source,evidence:candidate.evidence});
+            }
+          }
+          state.data.locationEvidence = evidence;
+          imported.applied = true;
+          renderChronology();
+          status(`${selected.length}件を${auto ? '自動' : '再'}反映しました（未保存）`);
+        }
+      } catch(error) { status(error.message,true); }
+    }
+    function applyChronologyRows(rows) {
+      try {
+        const sessions = StoryChronology.applyTimeline(state.data,state.selected,rows);
+        state.data.sessions = sessions;
+        state.chronologyRows = rows;
+        prepareTimeIndices();
+        markDirty(); renderChronology();
+        return true;
+      } catch(error) { status(error.message,true); renderChronology(); return false; }
+    }
+    function changeChronology(index,key,raw) {
+      const rows = state.chronologyRows.map(row => ({...row}));
+      if (key === 'location') rows[index].location = Number(raw);
+      else if (key === 'note') rows[index].note = raw;
+      else {
+        if (raw === '' || !Number.isFinite(Number(raw))) { status('日付を入力してください',true); renderChronology(); return; }
+        const value = Number(raw);
+        rows[index][key] = value;
+        if (key === 'start' && index > 0) rows[index-1].end = value;
+        if (key === 'end' && index < rows.length-1) rows[index+1].start = value;
+      }
+      state.articleImport = null;
+      applyChronologyRows(rows);
+    }
+    function splitChronology(index) {
+      const rows = state.chronologyRows.map(row => ({...row}));
+      const row = rows[index];
+      const middle = Number(((row.start + row.end)/2).toFixed(3));
+      if (middle <= row.start || middle >= row.end) { status('この期間はこれ以上分割できません',true); return; }
+      row.end = middle;
+      rows.splice(index+1,0,{start:middle,end:state.chronologyRows[index].end,location:row.location,note:''});
+      state.articleImport = null;
+      applyChronologyRows(rows);
+    }
+    function removeChronologyPeriod(index) {
+      const rows = state.chronologyRows.map(row => ({...row}));
+      if (rows.length === 1) return;
+      if (index > 0) rows[index-1].end = rows[index].end;
+      else rows[1].start = rows[0].start;
+      rows.splice(index,1);
+      state.articleImport = null;
+      applyChronologyRows(rows);
+    }
+    function renderDetails() {
+      if (state.tab === 'chronology') { renderChronology(); return; }
+      const item = current();
+      if (!item) { $('details').innerHTML = '<p class="hint">左の一覧から編集する項目を選択してください。</p>'; return; }
+      let html = `<h2>${tabNames[state.tab]}の編集</h2>`;
+      if (state.tab === 'characters') {
+        const autoColor = defaultCharacterColor(state.data.characters.findIndex(c => c.id === item.id), state.data.characters.length);
+        html += field('名前','name',item.name) + '<div class="two">' + dateField('生年月日','birthYear',item.birthYear) + dateField('没年月日','deathYear',item.deathYear) + '</div>';
+        html += `<label class="field">線の色<span class="colorRow"><input type="color" data-field="color" value="${item.color || autoColor}">${item.color ? '<button type="button" id="resetColor" class="relatedLink">自動に戻す</button>' : ''}</span></label>`;
+        html += '<button class="relatedLink" id="showPersonSessions">この人のセッション</button><button class="relatedLink" id="showPersonChronology">この人の年譜</button>';
+      } else if (state.tab === 'locations') {
+        const found = findNode(item.id);
+        const excluded = new Set(descendants(found.node));
+        const parents = [['root','所在地'], ...treeRows().filter(x => !excluded.has(x.id)).map(x => [x.id, `${'　'.repeat(x.depth)}${locationName(x.id)}`])];
+        html += field('場所名','name',item.name) + selectField('親の場所','parent',parents,found.parent?.id ?? 'root');
+        if (['日本','海外'].includes(item.name)) html = html.replace('data-field="parent"','data-field="parent" disabled');
+        html += '<p class="hint">国内は国→地方→都道府県→市区町村→施設の順に配置します。海外の国は「海外」の子として追加できます。</p>';
+      } else if (state.tab === 'sessions') {
+        html += selectField('場所','location',treeRows().map(x => [x.id,`${'　'.repeat(x.depth)}${locationName(x.id)}`]),item.location);
+        html += '<div class="two">' + dateField('開始日','startYear',yearOf(item,'start')) + dateField('終了日','endYear',yearOf(item,'end')) + '</div>';
+        html += '<div class="field">メンバー</div><div class="members">' + state.data.characters.map(p => `<label><input type="checkbox" data-member="${p.id}" ${item.members.includes(p.id) ? 'checked' : ''}>${escapeHtml(p.name)}</label>`).join('') + '</div>';
+        html += `<label class="field">日付・根拠メモ<textarea data-field="dateNote">${escapeHtml(item.dateNote || '')}</textarea></label>`;
+        html += '<p class="hint">同じ人物の期間が重なっても構いません。重なる期間は図ではメインの線から分岐する「並行セッション」として表示されます。</p>';
+      } else {
+        html += selectField('人物','character',state.data.characters.map(x => [x.id,x.name]),item.character);
+        html += dateField('発表日','year',item.year) + field('作品名','title',item.title);
+      }
+      html += '<button class="danger" id="deleteItem">削除</button>';
+      $('details').innerHTML = html;
+      $('details').querySelectorAll('[data-field]').forEach(input => {
+        input.onchange = () => {
+          const key = input.dataset.field;
+          if (input.value === '') { status('空欄の項目があります',true); return; }
+          if (key === 'parent') {
+            const found = findNode(item.id);
+            found.parent.children.splice(found.parent.children.indexOf(found.node),1);
+            findNode(input.value === 'root' ? 'root' : Number(input.value)).node.children.push(found.node);
+          } else {
+            item[key] = ['birthYear','deathYear','startYear','endYear','year','location','character'].includes(key) ? Number(input.value) : input.value;
+          }
+          markDirty(); renderList();
+          if (key === 'parent' || key === 'color') renderDetails();
+        };
+      });
+      bindDateFields((key,value) => {
+        item[key] = value;
+        if (key === 'startYear' || key === 'endYear') prepareTimeIndices();
+        markDirty(); renderList();
+      });
+      $('details').querySelectorAll('[data-member]').forEach(input => input.onchange = () => {
+        const id = Number(input.dataset.member);
+        item.members = input.checked ? [...item.members,id] : item.members.filter(x => x !== id);
+        markDirty();
+        if (state.sessionView === 'person' && !item.members.includes(state.personId)) selectFirstPersonSession();
+        renderList(); renderDetails();
+      });
+      const resetColor = $('resetColor');
+      if (resetColor) resetColor.onclick = () => { delete item.color; markDirty(); renderDetails(); };
+      const related = $('showPersonSessions');
+      if (related) related.onclick = () => {
+        state.personId = item.id; state.sessionView = 'person'; state.tab = 'sessions'; selectFirstPersonSession(); render();
+      };
+      const chronologyLink = $('showPersonChronology');
+      if (chronologyLink) chronologyLink.onclick = () => {
+        state.tab = 'chronology'; state.selected = item.id; state.chronologyRows = null; render();
+      };
+      $('deleteItem').onclick = removeItem;
+    }
+    function addItem() {
+      const data = state.data;
+      if (state.tab === 'characters') {
+        const id = nextId(data.characters); data.characters.push({id,name:`新しい人物 ${id}`,birthYear:1850,deathYear:1900}); state.selected = id;
+      } else if (state.tab === 'locations') {
+        const id = nextId(data.locations); data.locations.push({id,name:`新しい場所 ${id}`});
+        const parent = findNode(state.selected)?.node || data.locationTree;
+        parent.children.push({id,children:[]}); state.selected = id;
+      } else if (state.tab === 'sessions') {
+        if (!data.characters.length || !data.locations.length) return;
+        const id = nextId(data.sessions);
+        const person = state.sessionView === 'person' ? data.characters.find(x => x.id === state.personId) : data.characters[0];
+        const previous = data.sessions.filter(session => session.members.includes(person.id)).sort((a,b) => yearOf(b,'end') - yearOf(a,'end'))[0];
+        const start = previous && yearOf(previous,'end') < person.deathYear ? yearOf(previous,'end') : person.birthYear;
+        const end = Math.min(person.deathYear, start + 5);
+        data.sessions.push({id,location:previous?.location ?? data.locations[0].id,members:[person.id],start:0,end:1,startYear:start,endYear:end}); state.selected = id;
+      } else {
+        if (!data.characters.length) return;
+        data.events.push({character:data.characters[0].id,year:Number(data.timeLabels[0]),title:'新しい作品'}); state.selected = data.events.length - 1;
+      }
+      markDirty(); render();
+    }
+    function removeItem() {
+      const item = current(); if (!item) return;
+      if (state.tab === 'characters' && (state.data.sessions.some(s => s.members.includes(item.id)) || state.data.events.some(e => e.character === item.id) || (state.data.locationEvidence || []).some(e => e.character === item.id))) return status('セッション・作品・出典で使用中の人物です',true);
+      if (state.tab === 'locations' && (findNode(item.id).node.children.length || state.data.sessions.some(s => s.location === item.id) || (state.data.locationEvidence || []).some(e => e.location === item.id))) return status('子の場所・セッション・出典で使用中です',true);
+      if (state.tab === 'locations') { const found = findNode(item.id); found.parent.children.splice(found.parent.children.indexOf(found.node),1); }
+      state.data[state.tab].splice(selectedIndex(),1); selectFirstPersonSession(); markDirty(); render();
+    }
+    function prepareTimeIndices() {
+      const data = state.data;
+      const spans = data.sessions.map(s => ({start:Number(s.startYear ?? data.timeLabels[s.start]),end:Number(s.endYear ?? data.timeLabels[s.end])}));
+      const range = [...data.characters.flatMap(p => [p.birthYear,p.deathYear]), ...spans.flatMap(s => [s.start,s.end])];
+      const years = data.timeLabels.map(Number);
+      while (Math.min(...range) < years[0]) years.unshift(years[0]-5);
+      while (Math.max(...range) >= years[years.length-1]) years.push(years[years.length-1]+5);
+      data.timeLabels = years.map(String);
+      for (const [index,s] of data.sessions.entries()) {
+        const {start,end} = spans[index];
+        s.start = Math.max(0,years.findIndex((year,i) => i < years.length-1 && year <= start && start < years[i+1]));
+        s.end = Math.max(s.start+1,years.findIndex(year => year >= end));
+      }
+    }
+    async function load() {
+      if (state.dirty && !confirm('未保存の変更を破棄して再読込しますか？')) return;
+      try { const response = await fetch('/api/data'); if (!response.ok) throw new Error('編集サーバーに接続できません'); state.data = await response.json(); state.selected = null; state.chronologyRows = null; state.dirty = false; status('保存済み'); render(); }
+      catch (error) { status(error.message,true); }
+    }
+    async function save() {
+      try {
+        prepareTimeIndices();
+        status('保存中...'); $('save').disabled = true;
+        const response = await fetch('/api/data',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(state.data)});
+        const result = await response.json();
+        if (!response.ok) throw new Error((result.errors || [result.error]).join(' / '));
+        state.dirty = false; status('図を更新しました'); refreshPreview();
+      } catch(error) { status(error.message,true); } finally { $('save').disabled = false; }
+    }
+    function previewUrl() { return `storyline_${$('granularity').value}.html`; }
+    function refreshPreview() { $('preview').src = `${previewUrl()}?t=${Date.now()}`; }
+    $('add').onclick = addItem; $('reload').onclick = load; $('save').onclick = save;
+    $('granularity').onchange = () => { if ($('preview').src !== 'about:blank') refreshPreview(); };
+    $('showPreview').onclick = refreshPreview;
+    $('openPreview').onclick = () => window.open(previewUrl(), '_blank', 'noopener');
+    window.addEventListener('beforeunload', event => { if (state.dirty) { event.preventDefault(); event.returnValue = ''; } });
+    load();
+  </script>
+</body>
+</html>

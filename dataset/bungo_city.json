@@ -1,0 +1,1258 @@
+{
+  "title": "日本近現代文学史: 市区町村粒度",
+  "description": "Wikipedia「日本の近現代文学史」と各人物ページをもとに、指定作者の生涯線、同時期同所の所在地セッション、作品イベントをStoryFlow入力として整理したデータ。 セッション粒度: 市区町村。",
+  "timeLabels": [
+    "1830",
+    "1835",
+    "1840",
+    "1845",
+    "1850",
+    "1855",
+    "1860",
+    "1865",
+    "1870",
+    "1875",
+    "1880",
+    "1885",
+    "1890",
+    "1895",
+    "1900",
+    "1905",
+    "1910",
+    "1915",
+    "1920",
+    "1925",
+    "1930",
+    "1935",
+    "1940",
+    "1945"
+  ],
+  "placeGranularity": [
+    "国",
+    "地方",
+    "都道府県",
+    "市区町村",
+    "施設・拠点"
+  ],
+  "characters": [
+    {
+      "id": 0,
+      "name": "福澤諭吉",
+      "birthYear": 1835,
+      "deathYear": 1901
+    },
+    {
+      "id": 1,
+      "name": "坪内逍遥",
+      "birthYear": 1859.47123,
+      "deathYear": 1935.1589
+    },
+    {
+      "id": 2,
+      "name": "中江兆民",
+      "birthYear": 1847,
+      "deathYear": 1901
+    },
+    {
+      "id": 3,
+      "name": "中村正直",
+      "birthYear": 1832.47814,
+      "deathYear": 1891.43014
+    },
+    {
+      "id": 4,
+      "name": "川島忠之助",
+      "birthYear": 1853,
+      "deathYear": 1938
+    },
+    {
+      "id": 5,
+      "name": "矢野龍渓",
+      "birthYear": 1851,
+      "deathYear": 1931
+    },
+    {
+      "id": 6,
+      "name": "末広鉄腸",
+      "birthYear": 1849,
+      "deathYear": 1896
+    },
+    {
+      "id": 7,
+      "name": "二葉亭四迷",
+      "birthYear": 1864.25683,
+      "deathYear": 1909.35342
+    },
+    {
+      "id": 8,
+      "name": "尾崎紅葉",
+      "birthYear": 1868.08333,
+      "deathYear": 1903
+    }
+  ],
+  "locations": [
+    {
+      "id": 0,
+      "name": "中津市",
+      "sourceId": 50
+    },
+    {
+      "id": 1,
+      "name": "佐伯市",
+      "sourceId": 52
+    },
+    {
+      "id": 2,
+      "name": "千代田区",
+      "sourceId": 8
+    },
+    {
+      "id": 3,
+      "name": "名古屋市",
+      "sourceId": 73
+    },
+    {
+      "id": 4,
+      "name": "墨田区",
+      "sourceId": 10
+    },
+    {
+      "id": 5,
+      "name": "大阪市",
+      "sourceId": 33
+    },
+    {
+      "id": 6,
+      "name": "宇和島市",
+      "sourceId": 43
+    },
+    {
+      "id": 7,
+      "name": "富岡市",
+      "sourceId": 55
+    },
+    {
+      "id": 8,
+      "name": "徳島市",
+      "sourceId": 46
+    },
+    {
+      "id": 9,
+      "name": "文京区",
+      "sourceId": 5
+    },
+    {
+      "id": 10,
+      "name": "新宿区",
+      "sourceId": 70
+    },
+    {
+      "id": 11,
+      "name": "日本",
+      "sourceId": 0
+    },
+    {
+      "id": 12,
+      "name": "東京都",
+      "sourceId": 2
+    },
+    {
+      "id": 13,
+      "name": "松江市",
+      "sourceId": 79
+    },
+    {
+      "id": 14,
+      "name": "横浜市",
+      "sourceId": 13
+    },
+    {
+      "id": 15,
+      "name": "横須賀市",
+      "sourceId": 15
+    },
+    {
+      "id": 16,
+      "name": "海外",
+      "sourceId": 57
+    },
+    {
+      "id": 17,
+      "name": "港区",
+      "sourceId": 3
+    },
+    {
+      "id": 18,
+      "name": "熱海市",
+      "sourceId": 26
+    },
+    {
+      "id": 19,
+      "name": "甲府市",
+      "sourceId": 29
+    },
+    {
+      "id": 20,
+      "name": "美濃加茂市",
+      "sourceId": 19
+    },
+    {
+      "id": 21,
+      "name": "静岡市",
+      "sourceId": 24
+    },
+    {
+      "id": 22,
+      "name": "高知市",
+      "sourceId": 40
+    },
+    {
+      "id": 23,
+      "name": "麹町区",
+      "sourceId": 75
+    }
+  ],
+  "sessions": [
+    {
+      "id": 0,
+      "location": 5,
+      "members": [
+        0
+      ],
+      "start": 2,
+      "end": 3,
+      "startYear": 1835,
+      "endYear": 1836,
+      "sourceLocation": 33
+    },
+    {
+      "id": 1,
+      "location": 0,
+      "members": [
+        0
+      ],
+      "start": 3,
+      "end": 12,
+      "startYear": 1836,
+      "endYear": 1854,
+      "sourceLocation": 50
+    },
+    {
+      "id": 2,
+      "location": 17,
+      "members": [
+        3
+      ],
+      "start": 1,
+      "end": 13,
+      "startYear": 1832.47814,
+      "endYear": 1855,
+      "sourceLocation": 3
+    },
+    {
+      "id": 3,
+      "location": 5,
+      "members": [
+        0
+      ],
+      "start": 12,
+      "end": 15,
+      "startYear": 1854,
+      "endYear": 1860,
+      "sourceLocation": 33
+    },
+    {
+      "id": 4,
+      "location": 19,
+      "members": [
+        3
+      ],
+      "start": 13,
+      "end": 18,
+      "startYear": 1855,
+      "endYear": 1866.82,
+      "sourceLocation": 29
+    },
+    {
+      "id": 5,
+      "location": 17,
+      "members": [
+        0
+      ],
+      "start": 15,
+      "end": 19,
+      "startYear": 1860,
+      "endYear": 1868.08333,
+      "sourceLocation": 3
+    },
+    {
+      "id": 6,
+      "location": 16,
+      "members": [
+        3
+      ],
+      "start": 18,
+      "end": 20,
+      "startYear": 1866.82,
+      "endYear": 1868.5,
+      "groupLocation": 59,
+      "sourceLocation": 57
+    },
+    {
+      "id": 7,
+      "location": 10,
+      "members": [
+        7
+      ],
+      "start": 16,
+      "end": 21,
+      "startYear": 1864.25683,
+      "endYear": 1868.83333,
+      "sourceLocation": 70
+    },
+    {
+      "id": 8,
+      "location": 17,
+      "members": [
+        0,
+        8
+      ],
+      "start": 19,
+      "end": 22,
+      "startYear": 1868.08333,
+      "endYear": 1870,
+      "sourceLocation": 3
+    },
+    {
+      "id": 9,
+      "location": 4,
+      "members": [
+        4
+      ],
+      "start": 11,
+      "end": 22,
+      "startYear": 1853,
+      "endYear": 1870,
+      "sourceLocation": 10
+    },
+    {
+      "id": 10,
+      "location": 22,
+      "members": [
+        2
+      ],
+      "start": 6,
+      "end": 22,
+      "startYear": 1847,
+      "endYear": 1870,
+      "sourceLocation": 40
+    },
+    {
+      "id": 11,
+      "location": 6,
+      "members": [
+        6
+      ],
+      "start": 8,
+      "end": 22,
+      "startYear": 1849,
+      "endYear": 1870,
+      "sourceLocation": 43
+    },
+    {
+      "id": 12,
+      "location": 1,
+      "members": [
+        5
+      ],
+      "start": 10,
+      "end": 22,
+      "startYear": 1851,
+      "endYear": 1870,
+      "sourceLocation": 52
+    },
+    {
+      "id": 13,
+      "location": 3,
+      "members": [
+        7
+      ],
+      "start": 21,
+      "end": 24,
+      "startYear": 1868.83333,
+      "endYear": 1872.75,
+      "sourceLocation": 73
+    },
+    {
+      "id": 14,
+      "location": 17,
+      "members": [
+        0,
+        5,
+        8
+      ],
+      "start": 22,
+      "end": 25,
+      "startYear": 1870,
+      "endYear": 1875,
+      "sourceLocation": 3
+    },
+    {
+      "id": 15,
+      "location": 15,
+      "members": [
+        4
+      ],
+      "start": 22,
+      "end": 25,
+      "startYear": 1870,
+      "endYear": 1875,
+      "sourceLocation": 15
+    },
+    {
+      "id": 16,
+      "location": 20,
+      "members": [
+        1
+      ],
+      "start": 14,
+      "end": 25,
+      "startYear": 1859.47123,
+      "endYear": 1875,
+      "sourceLocation": 19
+    },
+    {
+      "id": 17,
+      "location": 21,
+      "members": [
+        3
+      ],
+      "start": 20,
+      "end": 25,
+      "startYear": 1868.5,
+      "endYear": 1875,
+      "sourceLocation": 24
+    },
+    {
+      "id": 18,
+      "location": 23,
+      "members": [
+        7
+      ],
+      "start": 24,
+      "end": 26,
+      "startYear": 1872.75,
+      "endYear": 1875.33333,
+      "sourceLocation": 75
+    },
+    {
+      "id": 19,
+      "location": 13,
+      "members": [
+        7
+      ],
+      "start": 26,
+      "end": 27,
+      "startYear": 1875.33333,
+      "endYear": 1878.16667,
+      "sourceLocation": 79
+    },
+    {
+      "id": 20,
+      "location": 2,
+      "members": [
+        2,
+        6
+      ],
+      "start": 22,
+      "end": 28,
+      "startYear": 1870,
+      "endYear": 1880,
+      "sourceLocation": 8
+    },
+    {
+      "id": 21,
+      "location": 8,
+      "members": [
+        5
+      ],
+      "start": 25,
+      "end": 28,
+      "startYear": 1875,
+      "endYear": 1880,
+      "sourceLocation": 46
+    },
+    {
+      "id": 22,
+      "location": 7,
+      "members": [
+        4
+      ],
+      "start": 25,
+      "end": 28,
+      "startYear": 1875,
+      "endYear": 1880,
+      "sourceLocation": 55
+    },
+    {
+      "id": 23,
+      "location": 12,
+      "members": [
+        7
+      ],
+      "start": 27,
+      "end": 29,
+      "startYear": 1878.16667,
+      "endYear": 1881.33333,
+      "sourceLocation": 2
+    },
+    {
+      "id": 24,
+      "location": 2,
+      "members": [
+        2,
+        5,
+        6
+      ],
+      "start": 28,
+      "end": 29,
+      "startYear": 1880,
+      "endYear": 1881.33333,
+      "sourceLocation": 8
+    },
+    {
+      "id": 25,
+      "location": 17,
+      "members": [
+        0,
+        8
+      ],
+      "start": 25,
+      "end": 31,
+      "startYear": 1875,
+      "endYear": 1883.66667,
+      "sourceLocation": 3
+    },
+    {
+      "id": 26,
+      "location": 9,
+      "members": [
+        1,
+        3
+      ],
+      "start": 25,
+      "end": 31,
+      "startYear": 1875,
+      "endYear": 1883.66667,
+      "sourceLocation": 5
+    },
+    {
+      "id": 27,
+      "location": 2,
+      "members": [
+        2,
+        5,
+        6,
+        7
+      ],
+      "start": 29,
+      "end": 33,
+      "startYear": 1881.33333,
+      "endYear": 1886,
+      "sourceLocation": 8
+    },
+    {
+      "id": 28,
+      "location": 2,
+      "members": [
+        2,
+        5,
+        6
+      ],
+      "start": 33,
+      "end": 34,
+      "startYear": 1886,
+      "endYear": 1888.32,
+      "sourceLocation": 8
+    },
+    {
+      "id": 29,
+      "location": 16,
+      "members": [
+        6
+      ],
+      "start": 34,
+      "end": 35,
+      "startYear": 1888.32,
+      "endYear": 1888.37,
+      "groupLocation": 68,
+      "sourceLocation": 57
+    },
+    {
+      "id": 30,
+      "location": 2,
+      "members": [
+        2,
+        5
+      ],
+      "start": 34,
+      "end": 36,
+      "startYear": 1888.32,
+      "endYear": 1889.17,
+      "sourceLocation": 8
+    },
+    {
+      "id": 31,
+      "location": 16,
+      "members": [
+        6
+      ],
+      "start": 35,
+      "end": 36,
+      "startYear": 1888.37,
+      "endYear": 1889.17,
+      "groupLocation": 59,
+      "sourceLocation": 57
+    },
+    {
+      "id": 32,
+      "location": 9,
+      "members": [
+        1,
+        3,
+        8
+      ],
+      "start": 31,
+      "end": 38,
+      "startYear": 1883.66667,
+      "endYear": 1891.43014,
+      "sourceLocation": 5
+    },
+    {
+      "id": 33,
+      "location": 2,
+      "members": [
+        2,
+        5,
+        6
+      ],
+      "start": 36,
+      "end": 39,
+      "startYear": 1889.17,
+      "endYear": 1895,
+      "sourceLocation": 8
+    },
+    {
+      "id": 34,
+      "location": 16,
+      "members": [
+        4
+      ],
+      "start": 28,
+      "end": 39,
+      "startYear": 1880,
+      "endYear": 1895,
+      "groupLocation": 61,
+      "sourceLocation": 57
+    },
+    {
+      "id": 35,
+      "location": 2,
+      "members": [
+        2,
+        6
+      ],
+      "start": 39,
+      "end": 40,
+      "startYear": 1895,
+      "endYear": 1896,
+      "sourceLocation": 8
+    },
+    {
+      "id": 36,
+      "location": 2,
+      "members": [
+        2
+      ],
+      "start": 40,
+      "end": 41,
+      "startYear": 1896,
+      "endYear": 1900,
+      "sourceLocation": 8
+    },
+    {
+      "id": 37,
+      "location": 16,
+      "members": [
+        5
+      ],
+      "start": 39,
+      "end": 41,
+      "startYear": 1895,
+      "endYear": 1900,
+      "groupLocation": 65,
+      "sourceLocation": 57
+    },
+    {
+      "id": 38,
+      "location": 17,
+      "members": [
+        0
+      ],
+      "start": 31,
+      "end": 42,
+      "startYear": 1883.66667,
+      "endYear": 1901,
+      "sourceLocation": 3
+    },
+    {
+      "id": 39,
+      "location": 2,
+      "members": [
+        2,
+        5
+      ],
+      "start": 41,
+      "end": 42,
+      "startYear": 1900,
+      "endYear": 1901,
+      "sourceLocation": 8
+    },
+    {
+      "id": 40,
+      "location": 16,
+      "members": [
+        7
+      ],
+      "start": 33,
+      "end": 45,
+      "startYear": 1886,
+      "endYear": 1902.33333,
+      "groupLocation": 83,
+      "sourceLocation": 57
+    },
+    {
+      "id": 41,
+      "location": 9,
+      "members": [
+        1,
+        8
+      ],
+      "start": 38,
+      "end": 47,
+      "startYear": 1891.43014,
+      "endYear": 1903,
+      "sourceLocation": 5
+    },
+    {
+      "id": 42,
+      "location": 16,
+      "members": [
+        7
+      ],
+      "start": 45,
+      "end": 48,
+      "startYear": 1902.33333,
+      "endYear": 1903.5,
+      "groupLocation": 65,
+      "sourceLocation": 57
+    },
+    {
+      "id": 43,
+      "location": 11,
+      "members": [
+        7
+      ],
+      "start": 48,
+      "end": 50,
+      "startYear": 1903.5,
+      "endYear": 1908.41667,
+      "sourceLocation": 0
+    },
+    {
+      "id": 44,
+      "location": 16,
+      "members": [
+        7
+      ],
+      "start": 50,
+      "end": 52,
+      "startYear": 1908.41667,
+      "endYear": 1909.35342,
+      "groupLocation": 83,
+      "sourceLocation": 57
+    },
+    {
+      "id": 45,
+      "location": 2,
+      "members": [
+        5
+      ],
+      "start": 42,
+      "end": 58,
+      "startYear": 1901,
+      "endYear": 1931,
+      "sourceLocation": 8
+    },
+    {
+      "id": 46,
+      "location": 9,
+      "members": [
+        1
+      ],
+      "start": 47,
+      "end": 59,
+      "startYear": 1903,
+      "endYear": 1935,
+      "sourceLocation": 5
+    },
+    {
+      "id": 47,
+      "location": 18,
+      "members": [
+        1
+      ],
+      "start": 59,
+      "end": 60,
+      "startYear": 1935,
+      "endYear": 1935.1589,
+      "sourceLocation": 26
+    },
+    {
+      "id": 48,
+      "location": 14,
+      "members": [
+        4
+      ],
+      "start": 39,
+      "end": 61,
+      "startYear": 1895,
+      "endYear": 1938,
+      "sourceLocation": 13
+    }
+  ],
+  "events": [
+    {
+      "character": 0,
+      "year": 1866,
+      "title": "西洋事情"
+    },
+    {
+      "character": 0,
+      "year": 1872,
+      "title": "学問のすゝめ"
+    },
+    {
+      "character": 0,
+      "year": 1875,
+      "title": "文明論之概略"
+    },
+    {
+      "character": 0,
+      "year": 1899,
+      "title": "福翁自伝"
+    },
+    {
+      "character": 1,
+      "year": 1884,
+      "title": "自由太刀余波鋭鋒"
+    },
+    {
+      "character": 1,
+      "year": 1885,
+      "title": "小説神髄"
+    },
+    {
+      "character": 1,
+      "year": 1885,
+      "title": "当世書生気質"
+    },
+    {
+      "character": 1,
+      "year": 1894,
+      "title": "桐一葉"
+    },
+    {
+      "character": 1,
+      "year": 1933,
+      "title": "新修シェークスピア全集"
+    },
+    {
+      "character": 2,
+      "year": 1881,
+      "title": "東洋自由新聞"
+    },
+    {
+      "character": 2,
+      "year": 1882,
+      "title": "民約訳解"
+    },
+    {
+      "character": 2,
+      "year": 1887,
+      "title": "三酔人経綸問答"
+    },
+    {
+      "character": 3,
+      "year": 1871,
+      "title": "西国立志編"
+    },
+    {
+      "character": 3,
+      "year": 1872,
+      "title": "自由之理"
+    },
+    {
+      "character": 4,
+      "year": 1878,
+      "title": "新説 八十日間世界一周 前編"
+    },
+    {
+      "character": 4,
+      "year": 1880,
+      "title": "新説 八十日間世界一周 後編"
+    },
+    {
+      "character": 4,
+      "year": 1882,
+      "title": "虚無党退治奇談"
+    },
+    {
+      "character": 5,
+      "year": 1874,
+      "title": "西洋偉人言行録"
+    },
+    {
+      "character": 5,
+      "year": 1883,
+      "title": "経国美談 前編"
+    },
+    {
+      "character": 5,
+      "year": 1884,
+      "title": "経国美談 後編"
+    },
+    {
+      "character": 5,
+      "year": 1890,
+      "title": "浮城物語"
+    },
+    {
+      "character": 6,
+      "year": 1876,
+      "title": "末広重恭転獄新話"
+    },
+    {
+      "character": 6,
+      "year": 1886,
+      "title": "雪中梅"
+    },
+    {
+      "character": 6,
+      "year": 1887,
+      "title": "花間鶯"
+    }
+  ],
+  "locationTree": {
+    "id": "root",
+    "name": "所在地",
+    "children": [
+      {
+        "id": 0,
+        "children": []
+      },
+      {
+        "id": 1,
+        "children": []
+      },
+      {
+        "id": 2,
+        "children": []
+      },
+      {
+        "id": 3,
+        "children": []
+      },
+      {
+        "id": 4,
+        "children": []
+      },
+      {
+        "id": 5,
+        "children": []
+      },
+      {
+        "id": 6,
+        "children": []
+      },
+      {
+        "id": 7,
+        "children": []
+      },
+      {
+        "id": 8,
+        "children": []
+      },
+      {
+        "id": 9,
+        "children": []
+      },
+      {
+        "id": 10,
+        "children": []
+      },
+      {
+        "id": 11,
+        "children": []
+      },
+      {
+        "id": 12,
+        "children": []
+      },
+      {
+        "id": 13,
+        "children": []
+      },
+      {
+        "id": 14,
+        "children": []
+      },
+      {
+        "id": 15,
+        "children": []
+      },
+      {
+        "id": 16,
+        "children": []
+      },
+      {
+        "id": 17,
+        "children": []
+      },
+      {
+        "id": 18,
+        "children": []
+      },
+      {
+        "id": 19,
+        "children": []
+      },
+      {
+        "id": 20,
+        "children": []
+      },
+      {
+        "id": 21,
+        "children": []
+      },
+      {
+        "id": 22,
+        "children": []
+      },
+      {
+        "id": 23,
+        "children": []
+      }
+    ]
+  },
+  "sources": [
+    "https://ja.wikipedia.org/wiki/日本の近現代文学史",
+    "https://ja.wikipedia.org/wiki/福澤諭吉",
+    "https://ja.wikipedia.org/wiki/坪内逍遥",
+    "https://ja.wikipedia.org/wiki/中江兆民",
+    "https://ja.wikipedia.org/wiki/中村正直",
+    "https://ja.wikipedia.org/wiki/川島忠之助",
+    "https://ja.wikipedia.org/wiki/矢野龍渓",
+    "https://ja.wikipedia.org/wiki/末広鉄腸"
+  ],
+  "locationEvidence": [
+    {
+      "character": 7,
+      "year": 1864.25683,
+      "location": 71,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "江戸市ヶ谷合羽坂の尾張藩上屋敷に生まれた（異説あり"
+    },
+    {
+      "character": 7,
+      "year": 1868.83333,
+      "location": 73,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "祖母とともに名古屋に移る"
+    },
+    {
+      "character": 7,
+      "year": 1871.58333,
+      "location": 74,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "名古屋藩学校に入学"
+    },
+    {
+      "character": 7,
+      "year": 1872.75,
+      "location": 76,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "麹町区飯田町に住む"
+    },
+    {
+      "character": 7,
+      "year": 1875.33333,
+      "location": 79,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "松江に移る"
+    },
+    {
+      "character": 7,
+      "year": 1878.16667,
+      "location": 2,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "東京に再び移る"
+    },
+    {
+      "character": 7,
+      "year": 1881.33333,
+      "location": 86,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "東京外国語学校（現東京外国語大学）露語科に進学"
+    },
+    {
+      "character": 7,
+      "year": 1902,
+      "location": 83,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "ロシア滞在中にエスペラントを学び"
+    },
+    {
+      "character": 7,
+      "year": 1902.33333,
+      "location": 81,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "大陸に渡りハルビンで徳永商会相談役となる"
+    },
+    {
+      "character": 7,
+      "year": 1902.66667,
+      "location": 82,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "かつての級友川島浪速を頼り北京の京師警務学堂提調代理となる"
+    },
+    {
+      "character": 7,
+      "year": 1903.5,
+      "location": 0,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "上職を辞して帰国"
+    },
+    {
+      "character": 7,
+      "year": 1908.41667,
+      "location": 85,
+      "source": "https://ja.wikipedia.org/wiki/%E4%BA%8C%E8%91%89%E4%BA%AD%E5%9B%9B%E8%BF%B7",
+      "evidence": "ロシアのペテルブルクへ派遣される"
+    },
+    {
+      "character": 8,
+      "year": 1883.66667,
+      "location": 6,
+      "source": "https://ja.wikipedia.org/wiki/%E5%B0%BE%E5%B4%8E%E7%B4%85%E8%91%89",
+      "evidence": "東京大学予備門に入学"
+    }
+  ],
+  "granularity": "市区町村",
+  "secondarySessions": [
+    {
+      "character": 4,
+      "location": 14,
+      "startYear": 1875,
+      "endYear": 1880,
+      "sourceLocation": 13
+    },
+    {
+      "character": 5,
+      "location": 5,
+      "startYear": 1875,
+      "endYear": 1880,
+      "sourceLocation": 33
+    },
+    {
+      "character": 6,
+      "location": 2,
+      "startYear": 1888.32,
+      "endYear": 1890,
+      "sourceLocation": 8
+    },
+    {
+      "character": 6,
+      "location": 2,
+      "startYear": 1895,
+      "endYear": 1896,
+      "sourceLocation": 8
+    }
+  ],
+  "timeValues": [
+    1830,
+    1832.47814,
+    1835,
+    1836,
+    1840,
+    1845,
+    1847,
+    1848,
+    1849,
+    1850,
+    1851,
+    1853,
+    1854,
+    1855,
+    1859.47123,
+    1860,
+    1864.25683,
+    1865,
+    1866.82,
+    1868.08333,
+    1868.5,
+    1868.83333,
+    1870,
+    1871.58333,
+    1872.75,
+    1875,
+    1875.33333,
+    1878.16667,
+    1880,
+    1881.33333,
+    1883.08493,
+    1883.66667,
+    1885,
+    1886,
+    1888.32,
+    1888.37,
+    1889.17,
+    1890,
+    1891.43014,
+    1895,
+    1896,
+    1900,
+    1901,
+    1902,
+    1902.167,
+    1902.33333,
+    1902.66667,
+    1903,
+    1903.5,
+    1905,
+    1908.41667,
+    1908.5,
+    1909.35342,
+    1910,
+    1915,
+    1920,
+    1925,
+    1930,
+    1931,
+    1935,
+    1935.1589,
+    1938,
+    1940,
+    1945
+  ]
+}
