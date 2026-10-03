@@ -1,0 +1,9 @@
+# headless Chrome profile used for screenshot checks (cookies/cache; never commit)
+.chrome-check/
+__pycache__/
+# visual-check screenshots
+*_check*.png
+*-check.png
+crop_*.png
+# unmodified reference clone of the original repo (github.com/ksh-zimuzu/storyflow-d3)
+real-data/
