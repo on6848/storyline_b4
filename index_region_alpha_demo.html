@@ -224,17 +224,291 @@
     var osqpModule = null;
     var osqpModulePromise = null;
 
-    // Storyline S-curve: flat tangent at every real frame, control points at the
-    // horizontal midpoint. Same-session members share frame x's and sit a fixed
-    // distance apart at each frame, so their curves are exact vertical translates
-    // (parallel); control points never leave their segment, so no hooks/overshoot.
+    // Storyline curve: monotone cubic (Steffen's method, same as d3 v4
+    // curveMonotoneX). Control points sit at 1/3 of their own segment, so no
+    // hooks or overshoot.
+    function storylineTangents(p) {
+      var m = [];
+      for (var i = 0; i < p.length; i++) {
+        var h0 = i > 0 ? p[i][0] - p[i - 1][0] : 0;
+        var h1 = i < p.length - 1 ? p[i + 1][0] - p[i][0] : 0;
+        if (Math.abs(h0) < 1e-9 || Math.abs(h1) < 1e-9) { m.push(0); continue; }
+        var s0 = (p[i][1] - p[i - 1][1]) / h0, s1 = (p[i + 1][1] - p[i][1]) / h1;
+        var q = (s0 * h1 + s1 * h0) / (h0 + h1);
+        m.push((Math.sign(s0) + Math.sign(s1)) * Math.min(Math.abs(s0), Math.abs(s1), 0.5 * Math.abs(q)) || 0);
+      }
+      return m;
+    }
+
     function storylineCurve(points) {
-      var path = [points[0]];
+      var m = storylineTangents(points);
+      var path = [points[0][0], ",", points[0][1]];
       for (var i = 1; i < points.length; i++) {
-        var p0 = points[i - 1], p1 = points[i], mx = (p0[0] + p1[0]) / 2;
-        path.push("C", mx, ",", p0[1], " ", mx, ",", p1[1], " ", p1[0], ",", p1[1]);
+        var x0 = points[i - 1][0], y0 = points[i - 1][1], x1 = points[i][0], y1 = points[i][1], h = (x1 - x0) / 3;
+        path.push("C", x0 + h, ",", y0 + h * m[i - 1], " ", x1 - h, ",", y1 - h * m[i], " ", x1, ",", y1);
       }
       return path.join("");
+    }
+
+    function storylineArrays(points) {
+      return points.slice().sort(function (a, b) { return a.x - b.x; })
+        .map(function (d) { return [d.x, d.y, d.sid, d.loc, d.lead, d.tail]; });
+    }
+
+    // Character lines: the QP polyline is split into runs of consecutive frames
+    // in the same shared session (p[i][2] = session id, -1 when alone). Two
+    // sessions at the same location (p[i][3]) are one run when the move between
+    // them is small: that's a bundle re-centring as someone joins or leaves,
+    // and squeezing it into one narrow frame gap would show as a bump. Each run
+    // is convolved with a Gaussian in x, holding its end values, so small moves
+    // in narrow gaps spread out instead of showing as steps. The filter is
+    // linear, so bundle members (constant offsets) stay parallel. Real moves
+    // happen only in the gap after a run's last frame, as a monotone cubic
+    // Hermite matched to both runs' slopes (C1, no kink, no overshoot), so a
+    // line never bends away while still in a band.
+    var storylineSigma = 16; // px; larger = smoother, less faithful to frames
+    var storylineMergeDy = 24; // px; same-location moves below this are smoothed, not stepped
+    function linearHold(p, x) {
+      if (x <= p[0][0]) return p[0][1];
+      if (x >= p[p.length - 1][0]) return p[p.length - 1][1];
+      var lo = 0, hi = p.length - 1;
+      while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (p[mid][0] <= x) lo = mid; else hi = mid; }
+      var span = p[hi][0] - p[lo][0];
+      return span < 1e-9 ? p[hi][1] : p[lo][1] + (p[hi][1] - p[lo][1]) * (x - p[lo][0]) / span;
+    }
+
+    // Beyond a run's ends the kernel holds the end value, unless the end point
+    // has a lead/tail ({run, off}: a bundle-mate's run that continues past this
+    // end, plus the constant offset). A line joining or leaving a bundle then
+    // reads exactly what its mates read, so it stays parallel to them.
+    function smoothRunAt(p, x) {
+      var lo = p[0][0], hi = p[p.length - 1][0], lead = p[0][4], tail = p[p.length - 1][5];
+      if (!lead && !tail && (p.length === 1 || hi - lo < 1e-9)) return p[0][1];
+      var acc = 0, wsum = 0;
+      for (var u = -3 * storylineSigma; u <= 3 * storylineSigma + 1e-9; u += storylineSigma / 4) {
+        var xx = x + u, y;
+        if (xx < lo && lead) y = linearHold(lead.run, xx) + lead.off;
+        else if (xx > hi && tail) y = linearHold(tail.run, xx) + tail.off;
+        else y = linearHold(p, xx);
+        var w = Math.exp(-u * u / (2 * storylineSigma * storylineSigma));
+        acc += w * y; wsum += w;
+      }
+      return acc / wsum;
+    }
+
+    function storylineRuns(p) {
+      var runs = [];
+      p.forEach(function (pt, i) {
+        var q = p[i - 1];
+        var sameRun = q && (pt[2] === q[2] ||
+          (pt[3] >= 0 && pt[3] === q[3] && Math.abs(pt[1] - q[1]) < storylineMergeDy));
+        if (sameRun) runs[runs.length - 1].push(pt);
+        else runs.push([pt]);
+      });
+      return runs;
+    }
+
+    function runSlopeAt(run, x, dir) {
+      return dir * (smoothRunAt(run, x) - smoothRunAt(run, x - dir));
+    }
+
+    // Where the move between run A and the next run B is drawn. Frames sit at
+    // session boundaries and membership is half-open, so a line is still in A
+    // right up to B's first frame xb. A shared session (sid >= 0) pins the
+    // line to its slot for its whole span: leaving one, the move starts at xb;
+    // joining one, it ends at xb; between two, it ends at xb within the strip
+    // the old band leaves free. A solo side isn't pinned, so the move may run
+    // on into (or start back inside) the solo stretch, wide enough that its
+    // steepest point stays under storylineMaxSlope where there's room. Until
+    // the move starts, smoothRunAt holds the line parallel to a bundle-mate
+    // (tail link) or flat.
+    var storylineTransitionW = 48; // px
+    var storylineHandoverDx = 14; // px, < storylineTransitionW / 2
+    var storylineMaxSlope = 3.5; // |dy/dx|; a flat-ended Hermite peaks at 1.5x its mean slope
+    function transitionWindow(runs, r) {
+      var a = runs[r], b = runs[r + 1];
+      var xa = a[a.length - 1][0], xb = b[0][0], W = storylineTransitionW;
+      var need = Math.max(W, 1.5 * Math.abs(b[0][1] - a[a.length - 1][1]) / storylineMaxSlope);
+      var leavesShared = a[a.length - 1][2] >= 0, joinsShared = b[0][2] >= 0;
+      // How far a solo side can give room: up to the neighbouring run.
+      var bFar = r + 2 < runs.length ? runs[r + 2][0][0] : b[b.length - 1][0] + need;
+      var aFar = r > 0 ? runs[r - 1][runs[r - 1].length - 1][0] : a[0][0] - need;
+      // Between two shared sessions: inside the band-free strip just before xb
+      // (the old session's band stops W/2 early, see buildMultiMemberLocationBands).
+      if (leavesShared && joinsShared) return [Math.max(xa, xb - W / 2), xb];
+      // Leaving for solo starts storylineHandoverDx early (still past the old
+      // band, which stops W/2 early), so if another line takes over this slot
+      // at xb, the leaver's bend and the newcomer's bend don't coincide.
+      if (leavesShared) {
+        var ws = Math.max(xa, xb - storylineHandoverDx);
+        return [ws, Math.min(bFar, Math.max(xb, ws + need))];
+      }
+      if (joinsShared) return [Math.max(aFar, Math.min(xa, xb - need)), xb];
+      var mid = (xa + xb) / 2, half = Math.max(xb - xa, need) / 2;
+      return [Math.max(aFar, mid - half), Math.min(bFar, mid + half)];
+    }
+
+    // All windows of a line, with overlaps (a short solo stop between two
+    // moves) split where they meet, so the line reaches the stop, turns with a
+    // flat tangent there and goes on, instead of jumping between two curves.
+    function transitionWindows(runs) {
+      if (runs._windows) return runs._windows;
+      var wins = [];
+      for (var r = 0; r < runs.length - 1; r++) wins.push(transitionWindow(runs, r));
+      for (r = 1; r < wins.length; r++) {
+        if (wins[r][0] >= wins[r - 1][1]) continue;
+        // Share the combined span in proportion to each move's height.
+        var h0 = Math.abs(runs[r][0][1] - runs[r - 1][runs[r - 1].length - 1][1]) + 1;
+        var h1 = Math.abs(runs[r + 1][0][1] - runs[r][runs[r].length - 1][1]) + 1;
+        var split = wins[r - 1][0] + (wins[r][1] - wins[r - 1][0]) * h0 / (h0 + h1);
+        wins[r - 1][1] = wins[r][0] = split;
+      }
+      runs._windows = wins;
+      return wins;
+    }
+
+    function smoothYAt(p, x, runs) {
+      runs = runs || storylineRuns(p);
+      if (x <= runs[0][0][0]) return smoothRunAt(runs[0], runs[0][0][0]);
+      var wins = transitionWindows(runs);
+      for (var r = 0; r < runs.length - 1; r++) {
+        var ws = wins[r][0], we = wins[r][1];
+        if (x <= ws) return smoothRunAt(runs[r], x);
+        if (x < we) {
+          var run = runs[r], next = runs[r + 1];
+          var y0 = smoothRunAt(run, ws), y1 = smoothRunAt(next, we), h = we - ws, d = (y1 - y0) / h;
+          var m0 = runSlopeAt(run, ws, 1), m1 = runSlopeAt(next, we, -1);
+          // Fritsch-Carlson limits keep the transition monotone (no overshoot).
+          if (m0 * d <= 0) m0 = 0; else m0 = Math.sign(d) * Math.min(Math.abs(m0), 3 * Math.abs(d));
+          if (m1 * d <= 0) m1 = 0; else m1 = Math.sign(d) * Math.min(Math.abs(m1), 3 * Math.abs(d));
+          var t = (x - ws) / h, t2 = t * t, t3 = t2 * t;
+          return (2 * t3 - 3 * t2 + 1) * y0 + (t3 - 2 * t2 + t) * h * m0 + (-2 * t3 + 3 * t2) * y1 + (t3 - t2) * h * m1;
+        }
+      }
+      return smoothRunAt(runs[runs.length - 1], x);
+    }
+
+    // Which session the line belongs to at x (grp; mid-move: the nearer
+    // end's session) and the frame point it holds there (slot); sessions are
+    // half-open, so that's the last frame at or before x.
+    function storylineSampleInfo(runs, x) {
+      var wins = transitionWindows(runs);
+      function frameAt(run) {
+        var best = run[0];
+        run.forEach(function (pt) { if (pt[0] <= x) best = pt; });
+        return best;
+      }
+      for (var r = 0; r < runs.length - 1; r++) {
+        if (x <= wins[r][0]) { var f = frameAt(runs[r]); return { bind: f[2] >= 0, grp: f[2], slot: f[1] }; }
+        if (x < wins[r][1]) {
+          var g2 = x - wins[r][0] < wins[r][1] - x ? runs[r][runs[r].length - 1][2] : runs[r + 1][0][2];
+          return { bind: false, grp: g2 };
+        }
+      }
+      var f3 = frameAt(runs[runs.length - 1]);
+      return { bind: f3[2] >= 0, grp: f3[2], slot: f3[1] };
+    }
+
+    var storylineStep = 2; // px between samples
+
+    function storylineSmoothPath(points) {
+      var smp = points._samples;
+      if (!smp) return null;
+      var arr = smp.y.map(function (y, i) { return [(smp.i0 + i) * storylineStep, y]; });
+      if (arr.length < 2) return arr.length ? "M" + arr[0][0] + "," + arr[0][1] : null;
+      return "M" + storylineCurve(arr);
+    }
+
+    // Sample every line on one x-grid, then keep lines that aren't in the same
+    // session at least storylineMinClear apart (centre to centre) wherever they
+    // don't cross: at each x, adjacent lines (in their unadjusted order) that
+    // are too close get pushed apart, moving only samples not pinned to a
+    // session slot. Pairs within storylineCrossWindow of a crossing are left
+    // alone so they can still cross. Each line's push is then spread with a
+    // Gaussian that never shrinks it, so the detour is smooth, not a kink.
+    var storylineMinClear = 14; // px
+    var storylineCrossWindow = 24; // px
+    function computeStorylineSamples(chars, sessionGap) {
+      var step = storylineStep;
+      var lines = chars.map(function (c) {
+        var p = storylineArrays(c.d3.points), runs = storylineRuns(p);
+        var i0 = Math.ceil(p[0][0] / step), i1 = Math.max(i0, Math.floor(p[p.length - 1][0] / step));
+        var L = { pts: c.d3.points, i0: i0, i1: i1, y0: [], y: [], bind: [], grp: [] };
+        for (var i = i0; i <= i1; i++) {
+          var x = i * step, info = storylineSampleInfo(runs, x), y = smoothYAt(p, x, runs);
+          // Pinned only while actually on its slot: while smoothing spreads a
+          // bundle's re-centring shift, the line may still be pushed clear.
+          L.y0.push(y); L.y.push(y); L.grp.push(info.grp);
+          L.bind.push(info.bind && Math.abs(y - info.slot) < 1);
+        }
+        return L;
+      });
+      var minCol = d3.min(lines, function (L) { return L.i0; }), maxCol = d3.max(lines, function (L) { return L.i1; });
+      var at = function (L, arr, col) { return col < L.i0 || col > L.i1 ? undefined : arr[col - L.i0]; };
+
+      // nearCross[a][b][col]: their unadjusted order flips within the window.
+      var W = Math.round(storylineCrossWindow / step), nearCross = {};
+      lines.forEach(function (A, a) {
+        lines.forEach(function (B, b) {
+          if (b <= a) return;
+          var lo = Math.max(A.i0, B.i0), hi = Math.min(A.i1, B.i1), sg = {}, flag = {};
+          for (var col = lo; col <= hi; col++) sg[col] = Math.sign(at(A, A.y0, col) - at(B, B.y0, col));
+          for (col = lo; col <= hi; col++) {
+            for (var k = Math.max(lo, col - W); k <= Math.min(hi, col + W); k++) {
+              if (sg[k] !== sg[col] || sg[col] === 0) { flag[col] = true; break; }
+            }
+          }
+          nearCross[a + "," + b] = flag;
+        });
+      });
+
+      function push() {
+        for (var col = minCol; col <= maxCol; col++) {
+          var act = [];
+          lines.forEach(function (L, idx) { if (col >= L.i0 && col <= L.i1) act.push(idx); });
+          act.sort(function (a, b) { return at(lines[a], lines[a].y0, col) - at(lines[b], lines[b].y0, col); });
+          for (var it = 0; it < 8; it++) {
+            for (var k = 0; k + 1 < act.length; k++) {
+              var ia = act[k], ib = act[k + 1], A = lines[ia], B = lines[ib];
+              var key = Math.min(ia, ib) + "," + Math.max(ia, ib);
+              if (nearCross[key][col]) continue;
+              var ga = at(A, A.grp, col), gb = at(B, B.grp, col);
+              var need = ga >= 0 && ga === gb ? sessionGap : storylineMinClear;
+              var ja = col - A.i0, jb = col - B.i0, deficit = need - (B.y[jb] - A.y[ja]);
+              if (deficit <= 1e-6) continue;
+              var fa = A.bind[ja], fb = B.bind[jb];
+              if (fa && fb) continue;
+              if (fa) B.y[jb] += deficit;
+              else if (fb) A.y[ja] -= deficit;
+              else { A.y[ja] -= deficit / 2; B.y[jb] += deficit / 2; }
+            }
+          }
+        }
+      }
+      function spread(L) {
+        var n = L.y.length, d = L.y.map(function (y, i) { return y - L.y0[i]; }), out = d.slice();
+        var sig = 8 / step, R = Math.ceil(3 * sig);
+        var nearBind = L.bind.map(function (b, i) {
+          for (var k = Math.max(0, i - R); k <= Math.min(n - 1, i + R); k++) if (L.bind[k]) return true;
+          return false;
+        });
+        for (var i = 0; i < n; i++) {
+          if (L.bind[i]) { out[i] = 0; continue; }
+          var acc = 0, ws = 0;
+          for (var k = Math.max(0, i - R); k <= Math.min(n - 1, i + R); k++) {
+            var w = Math.exp(-(k - i) * (k - i) / (2 * sig * sig));
+            acc += w * d[k]; ws += w;
+          }
+          var g = acc / ws;
+          // Never shrink a push, except next to a pinned stretch, where it
+          // has to ease off to 0 (plain Gaussian) or the line would step
+          // onto its rail; clearance there can fall a little short.
+          out[i] = nearBind[i] ? g : d[i] > 0 ? Math.max(g, d[i]) : d[i] < 0 ? Math.min(g, d[i]) : g;
+        }
+        L.y = out.map(function (v, i) { return L.y0[i] + v; });
+      }
+      for (var pass = 0; pass < 4; pass++) { push(); lines.forEach(spread); }
+      lines.forEach(function (L) { L.pts._samples = { i0: L.i0, y: L.y, y0: L.y0, bind: L.bind, grp: L.grp }; });
     }
 
     var options = {
@@ -256,6 +530,7 @@
         labelX: 4,
         labelDy: -4,
         sessionCoefficient: 2,
+        sessionGap: 12,      // px between same-session lines (centre to centre)
         strokeWidth: 5,
         highlightStrokeWidth: 9,
         highlightDuration: 300,
@@ -291,6 +566,7 @@
         // ---- 5.3 / 5.4 ----
         alpha: 0.1,          // 5.3 session sim の α
         din: 34,             // 5.4 (5c) 同一セッション内の隣接距離
+        continuityWeight: 1, // 5.3 同じ場所に留まる人物の直線本数の追加重み(0で論文Eq.3そのまま)
         dout: 76,            // 5.4 (5d) 異セッション間の最小距離
         epsOrder: 1e-3,      // 5.4 (5a) orderの厳密性
 
@@ -670,6 +946,20 @@
         });
       });
 
+      // Shared (multi-member) session a character is in at this frame, or -1.
+      function sharedSessionAt(time, cid) {
+        for (var li = 0; li < time.locations.length; li++) {
+          var ids = time.locations[li].sessions;
+          for (var si = 0; si < ids.length; si++) {
+            var members = dataset.sessions[ids[si]].members;
+            if (members.length > 1 && members.indexOf(cid) !== -1) return ids[si];
+          }
+        }
+        return -1;
+      }
+
+      // Previous frame's final y and shared location per character (bundle anchoring below).
+      var prevY = {}, prevLoc = {};
       for (var t = 0; t < dataset.d3.time.length; ++t) {
         var time = dataset.d3.time[t];
 
@@ -714,6 +1004,7 @@
 
         } else {
           // QP layout
+          var framePoints = {}, frameAll = [];
           for (var k = 0; k < time.sortedCharacters.length; k++) {
             var cid2 = time.sortedCharacters[k];
             var character2 = dataset.characters.filter(function (character) {
@@ -724,12 +1015,70 @@
             if (!character2.d3) character2.d3 = { color: character2.color || characterColors(character2.id) };
             if (!character2.d3.points) character2.d3.points = [];
 
-            character2.d3.points.push({
+            var qpPoint = {
               x: xForTimeIndex(t),
-              y: yA * time.d3.y[cid2] + yB  // ★これが最終y（QP結果）
-            });
+              y: yA * time.d3.y[cid2] + yB,  // ★これが最終y（QP結果）
+              sid: sharedSessionAt(time, cid2),
+              cid: cid2
+            };
+            frameAll.push(qpPoint);
+            character2.d3.points.push(qpPoint);
+            qpPoint.loc = qpPoint.sid >= 0 ? dataset.sessions[qpPoint.sid].location : -1;
+            if (qpPoint.sid >= 0) (framePoints[qpPoint.sid] = framePoints[qpPoint.sid] || []).push(qpPoint);
           }
 
+          // Re-place each session's members exactly sessionGap px apart, in
+          // sortedCharacters order: constant offsets every frame, so lines stay
+          // parallel (the ADMM solve stops before the din equality (5c) is exact).
+          // Where the bundle sits: if it continues at the same location, anchor
+          // it so its continuing members keep last frame's y (least-squares),
+          // instead of following the QP, which drifts a few px every frame
+          // (solver noise) and shows as a wave. The QP position (of the staying
+          // members, else of everyone) is used for new bundles, when the
+          // anchor would drift more than 3 gaps from it (a real move), or when
+          // anchoring would break the frame's line order/clearance.
+          var gap = options.characters.sessionGap;
+          // Lines the alignment step (5.3) chose to keep straight from t-1 to t.
+          var prevAl = t > 0 && dataset.d3.time[t - 1].d3 && dataset.d3.time[t - 1].d3.alignment;
+          var aligned = {};
+          (prevAl ? prevAl.alignedSegments : []).forEach(function (seg) { aligned[seg.cid] = true; });
+          function placeBlocks(useAnchor) {
+            Object.keys(framePoints).forEach(function (sid) {
+              var block = framePoints[sid], n = block.length, loc = dataset.sessions[sid].location;
+              var slot = function (i) { return (i - (n - 1) / 2) * gap; };
+              // Reference: where the QP put the members that stay at this
+              // location (alignment keeps those straight); the mean of all
+              // members only for a bundle with no one staying.
+              var anchors = [], qpStay = [], straight = [];
+              block.forEach(function (pt, i) {
+                if (prevLoc[pt.cid] !== loc) return;
+                anchors.push(prevY[pt.cid] - slot(i));
+                qpStay.push(pt.qpY - slot(i));
+                if (aligned[pt.cid]) straight.push(prevY[pt.cid] - slot(i));
+              });
+              var centre = qpStay.length ? d3.mean(qpStay) : d3.mean(block, function (pt) { return pt.qpY; });
+              // A staying member the alignment keeps straight is held exactly
+              // (the ADMM solve only approximates that equality); otherwise
+              // follow the previous frame unless the QP moved the bundle a lot.
+              if (useAnchor && straight.length) centre = d3.mean(straight);
+              else if (useAnchor && anchors.length && Math.abs(d3.mean(anchors) - centre) < 3 * gap) centre = d3.mean(anchors);
+              block.forEach(function (pt, i) { pt.y = centre + slot(i); });
+            });
+          }
+          frameAll.forEach(function (pt) { pt.qpY = pt.y; });
+          placeBlocks(true);
+          var ordered = frameAll.every(function (pt, i) {
+            if (i === 0) return true;
+            var q = frameAll[i - 1];
+            return pt.y - q.y >= (pt.sid >= 0 && pt.sid === q.sid ? gap : 1.5 * gap) - 1e-6;
+          });
+          if (!ordered) placeBlocks(false);
+          prevY = {}; prevLoc = {};
+          frameAll.forEach(function (pt) {
+            delete pt.qpY;
+            prevY[pt.cid] = pt.y;
+            prevLoc[pt.cid] = pt.sid >= 0 ? pt.loc : undefined;
+          });
         }
       }
 
@@ -777,6 +1126,38 @@
       }
 
       ensureCharacterPointsVisible();
+
+      // Give each run end inside a shared session a lead/tail: a co-member at
+      // that frame whose own run extends past it (see smoothRunAt).
+      (function linkBundleMates() {
+        var chars = dataset.characters.filter(function (c) { return c.d3 && c.d3.points && c.d3.points.length; });
+        chars.forEach(function (c) { c.d3.points.forEach(function (pt) { delete pt.lead; delete pt.tail; }); });
+        chars.forEach(function (c) { c.d3.runs = storylineRuns(storylineArrays(c.d3.points)); });
+        function link(c, end, key, extends_) {
+          if (end[2] < 0) return;
+          var obj = c.d3.points.filter(function (q) { return q.x === end[0]; })[0];
+          chars.some(function (m) {
+            if (m === c) return false;
+            return m.d3.runs.some(function (r) {
+              var at = r.filter(function (q) { return q[0] === end[0] && q[2] === end[2]; })[0];
+              if (!at || !extends_(r)) return false;
+              obj[key] = { run: r, off: end[1] - at[1] };
+              return true;
+            });
+          });
+        }
+        chars.forEach(function (c) {
+          c.d3.runs.forEach(function (run) {
+            var first = run[0], last = run[run.length - 1];
+            link(c, first, "lead", function (r) { return r[0][0] < first[0]; });
+            link(c, last, "tail", function (r) { return r[r.length - 1][0] > last[0]; });
+          });
+        });
+      })();
+
+      computeStorylineSamples(dataset.characters.filter(function (c) {
+        return c.d3 && c.d3.points && c.d3.points.length;
+      }), options.characters.sessionGap);
 
       for (t = 0; t < dataset.d3.time.length; ++t) {
         time = dataset.d3.time[t];
@@ -1175,7 +1556,12 @@
                 if (lastRealFrame === null || candidate > lastRealFrame) lastRealFrame = candidate;
               }
             }
-            if (lastRealFrame !== null) effectiveEndYear = lastRealFrame;
+            if (lastRealFrame !== null) {
+              // Members hold their slots until the move window (see
+              // transitionWindow), which starts at most W/2 before the end.
+              var holdUntil = horizontalScale.invert(horizontalScale(endYear) - storylineTransitionW / 2);
+              effectiveEndYear = Math.min(endYear, Math.max(lastRealFrame, holdUntil));
+            }
           }
           var sampleYears = [startYear, effectiveEndYear];
           [0.02, 0.05, 0.1, 0.25].forEach(function (epsilonYear) {
@@ -1503,40 +1889,23 @@
         svg.selectAll(".sessionBand").remove();
       }
 
-      // Evaluates storylineCurve exactly, so bands/branches sit on the drawn lines.
+      // Same function the lines are drawn from, so bands/branches sit on them.
       function yAtXFromPoints(points, x) {
         if (!points || points.length === 0) return null;
-        var sorted = points.slice().sort(function (a, b) { return a.x - b.x; });
-        if (x <= sorted[0].x) return sorted[0].y;
-        for (var pi = 0; pi < sorted.length - 1; pi++) {
-          var a = sorted[pi];
-          var b = sorted[pi + 1];
-          if (a.x <= x && x <= b.x) {
-            var span = b.x - a.x;
-            var u = Math.abs(span) < 1e-9 ? 0 : (x - a.x) / span;
-            // Bezier x(t) = 1.5t - 1.5t^2 + t^3 is strictly increasing; bisect for t.
-            var lo = 0, hi = 1;
-            for (var it = 0; it < 30; it++) {
-              var t = (lo + hi) / 2;
-              if (1.5 * t - 1.5 * t * t + t * t * t < u) lo = t; else hi = t;
-            }
-            t = (lo + hi) / 2;
-            return a.y + (b.y - a.y) * (3 * t * t - 2 * t * t * t);
-          }
-        }
-        return sorted[sorted.length - 1].y;
+        var smp = points._samples;
+        if (!smp) return smoothYAt(storylineArrays(points), x);
+        var f = Math.max(0, Math.min(smp.y.length - 1, x / storylineStep - smp.i0)), i = Math.floor(f);
+        return i + 1 < smp.y.length ? smp.y[i] + (smp.y[i + 1] - smp.y[i]) * (f - i) : smp.y[i];
       }
-
-      var line_function = d3.svg.line().interpolate(options.characters.interpolation)
-        .x(function (d) { return d.x; })
-        .y(function (d) { return d.y; });
 
       function setCharacterLinesAttributes(lines) {
         return lines
           .attr("class", options.characters.class)
           .attr("id", function (d) { return idPrefix + options.characters.class + d.id; })
           .attr("xlink:href", function (d) { return options.characters.class + d.id; })
-          .attr("d", function (d) { return line_function(d.d3.points); })
+          .attr("d", function (d) { return storylineSmoothPath(d.d3.points); })
+          .attr("stroke-linejoin", "round")
+          .attr("stroke-linecap", "round")
           .attr("fill", "none")
           .attr("stroke", function (d) { return d.d3.color; })
           .attr("stroke-width", options.characters.strokeWidth)
@@ -1588,32 +1957,42 @@
           var midMainY = yAtXFromPoints(character.d3.points, mid);
           if (midMainY === null) return null;
 
-          // Greedy row search: nudge the branch up/down from the main line just far
-          // enough to clear other characters' lines near the middle of the overlap,
-          // without touching the QP-optimized main layout at all.
+          // Pick the branch's side and arc height: full arcs first, then damped
+          // ones, keeping the branch's middle (its ends sit on its own main
+          // line) at least branchClear px clear of every other line, edge to
+          // edge, along the whole span. If nothing fits, take the fewest clashes.
           var rowHeight = (options.svg && options.svg.rowHeight) || 36;
-          var candidateOffsets = [rowHeight * 0.65, -rowHeight * 0.65, rowHeight * 1.3, -rowHeight * 1.3];
-          var offset = candidateOffsets[0];
-          for (var oi = 0; oi < candidateOffsets.length; oi++) {
-            var candidateY = midMainY + candidateOffsets[oi];
-            var clear = dataset.characters.every(function (other) {
-              if (other.id === character.id || !other.d3 || !other.d3.points || !other.d3.points.length) return true;
-              var otherY = yAtXFromPoints(other.d3.points, mid);
-              return otherY === null || Math.abs(otherY - candidateY) > rowHeight * 0.4;
-            });
-            if (clear) { offset = candidateOffsets[oi]; break; }
-          }
-
+          var branchClear = 6 + options.characters.strokeWidth * 0.75; // centre distance: 6px gap + half of each stroke
           var steps = Math.max(6, Math.min(40, Math.round((xEnd - xStart) / 18)));
-          var points = [];
+          var xsB = [], baseYs = [], otherYs = [];
           for (var s = 0; s <= steps; s++) {
-            var t = s / steps;
-            var x = xStart + (xEnd - xStart) * t;
-            var baseY = yAtXFromPoints(character.d3.points, x);
-            if (baseY === null) baseY = midMainY;
+            var xB = xStart + (xEnd - xStart) * s / steps, by = yAtXFromPoints(character.d3.points, xB);
+            xsB.push(xB);
+            baseYs.push(by === null ? midMainY : by);
+          }
+          dataset.characters.forEach(function (other) {
+            if (other.id === character.id || !other.d3 || !other.d3.points || !other.d3.points.length) return;
+            otherYs.push(xsB.map(function (xB) { return yAtXFromPoints(other.d3.points, xB); }));
+          });
+          var best = null;
+          [1, 0.6, 0.35].forEach(function (damp) {
+            [0.65, -0.65, 1.3, -1.3].forEach(function (k) {
+              var off = k * rowHeight * damp, clashes = 0;
+              for (var s2 = 0; s2 <= steps; s2++) {
+                var t2 = s2 / steps;
+                if (t2 < 0.15 || t2 > 0.85) continue;
+                var yB = baseYs[s2] + off * Math.sin(Math.PI * t2);
+                otherYs.forEach(function (ys) { if (ys[s2] !== null && Math.abs(ys[s2] - yB) < branchClear) clashes++; });
+              }
+              if (!best || clashes < best.clashes) best = { off: off, clashes: clashes };
+            });
+          });
+          var offset = best.off;
+
+          var points = [];
+          for (s = 0; s <= steps; s++) {
             // ease so the branch splits away from and merges back into the main line
-            var ease = Math.sin(Math.PI * t);
-            points.push({ x: x, y: baseY + offset * ease });
+            points.push({ x: xsB[s], y: baseYs[s] + offset * Math.sin(Math.PI * s / steps) });
           }
           return {
             key: entry.character + "-" + entry.location + "-" + entry.startYear,
@@ -3585,7 +3964,14 @@
       function straightCount(sessionL, sessionR) {
         // Paper: straight(li, rj) = max number of straight segments obtainable from li and rj.
         // With fixed ordering, this equals LCS length between ordered entity lists.
-        return lcsMatchedElements(sessionL.membersOrdered, sessionR.membersOrdered).length;
+        // Extension: a straight segment for a line that stays at the same location
+        // counts (1 + continuityWeight), so on ties the session a line stays in
+        // wins the alignment over one it is merely arriving at, and the line that
+        // stays put is the one kept straight. continuityWeight = 0 is the paper's Eq.
+        var n = lcsMatchedElements(sessionL.membersOrdered, sessionR.membersOrdered).length;
+        var sameLocation = dataset.sessions[sessionL.sid].location === dataset.sessions[sessionR.sid].location;
+        var beta = (options.algorithm && typeof options.algorithm.continuityWeight === "number") ? options.algorithm.continuityWeight : 1;
+        return sameLocation ? n * (1 + beta) : n;
       }
 
       function sessionSim(i1based, j1based, m, n, sessionL, sessionR, alpha) {
@@ -3704,6 +4090,91 @@
           };
         }
       }
+
+      // Member order inside a session block never changes crossings with other
+      // blocks, so lines joining a bundle can be stacked in the order they
+      // arrive from (a line coming from below takes the bottom slot instead of
+      // crossing the others), and lines about to leave in the order they leave
+      // to. Forward pass: at each frame, order each bundle's members by the
+      // previous frame; backward pass: by the next frame. The new order is
+      // applied to every frame the same members stay bundled together, so it
+      // never creates a swap inside a bundle, and it's kept only if crossings
+      // over that span strictly drop (swaps between lines bundled in both
+      // frames weigh 10, as they read as lines running over each other).
+      function reorderWithinSessions(ds) {
+        var times = ds.d3.time, T = times.length;
+        var before = countCrossingsAll(ds);
+        var sids = times.map(function (m) {
+          var sidOf = {};
+          m.locations.forEach(function (loc) {
+            loc.sessions.forEach(function (sid) {
+              ds.sessions[sid].members.forEach(function (cid) { sidOf[cid] = sid; });
+            });
+          });
+          return sidOf;
+        });
+        function bundleSwaps(a, sa, b, sb) {
+          var ids = a.filter(function (c) { return b.indexOf(c) !== -1; }), n = 0;
+          for (var i = 0; i < ids.length; i++) {
+            for (var j = i + 1; j < ids.length; j++) {
+              var u = ids[i], v = ids[j];
+              if (sa[u] !== sa[v] || sb[u] !== sb[v]) continue;
+              if ((a.indexOf(u) < a.indexOf(v)) !== (b.indexOf(u) < b.indexOf(v))) n++;
+            }
+          }
+          return n;
+        }
+        function spanCost(lo, hi) {
+          var c = 0;
+          for (var t = Math.max(0, lo); t < Math.min(T - 1, hi); t++) {
+            var a = times[t].sortedCharacters, b = times[t + 1].sortedCharacters;
+            c += computeCrossings(computeRealizationMatrix(a, b), a, b) + 10 * bundleSwaps(a, sids[t], b, sids[t + 1]);
+          }
+          return c;
+        }
+        function tryFrame(t, refT, dir) {
+          var cur = times[t].sortedCharacters, ref = times[refT].sortedCharacters;
+          var groups = {};
+          cur.forEach(function (c) {
+            if (ref.indexOf(c) !== -1) (groups[sids[t][c]] = groups[sids[t][c]] || []).push(c);
+          });
+          Object.keys(groups).forEach(function (g) {
+            var subset = groups[g];
+            if (subset.length < 2) return;
+            var desired = subset.slice().sort(function (a, b) { return ref.indexOf(a) - ref.indexOf(b); });
+            if (desired.join() === subset.join()) return;
+            var frames = [];
+            for (var k = t; k >= 0 && k < T; k += dir) {
+              var order = times[k].sortedCharacters;
+              var together = subset.every(function (c) {
+                return order.indexOf(c) !== -1 && sids[k][c] === sids[k][subset[0]];
+              });
+              if (!together) break;
+              frames.push(k);
+            }
+            var lo = Math.min(t, frames[frames.length - 1]) - 1, hi = Math.max(t, frames[frames.length - 1]) + 1;
+            var costBefore = spanCost(lo, hi);
+            var saved = frames.map(function (k) { return times[k].sortedCharacters; });
+            frames.forEach(function (k) {
+              var order = times[k].sortedCharacters.slice();
+              var slots = subset.map(function (c) { return order.indexOf(c); }).sort(function (a, b) { return a - b; });
+              slots.forEach(function (slot, i) { order[slot] = desired[i]; });
+              times[k].sortedCharacters = order;
+            });
+            if (spanCost(lo, hi) >= costBefore) {
+              frames.forEach(function (k, i) { times[k].sortedCharacters = saved[i]; });
+            }
+          });
+        }
+        var saved = times.map(function (m) { return m.sortedCharacters.slice(); });
+        for (var t = 1; t < T; t++) tryFrame(t, t - 1, 1);
+        for (t = T - 2; t >= 0; t--) tryFrame(t, t + 1, -1);
+        if (countCrossingsAll(ds) > before) {
+          times.forEach(function (m, t) { m.sortedCharacters = saved[t]; });
+        }
+        console.log("[cross] within-session reorder:", before, "->", countCrossingsAll(ds));
+      }
+      reorderWithinSessions(bestDataset);
 
       // After sweeping, compute alignment on the bestDataset (not the transient dataset)
       computeAlignmentForAllFrames(bestDataset, options);
